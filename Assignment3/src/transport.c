@@ -22,7 +22,15 @@
 
 enum { 
     CSTATE_ESTABLISHED
-
+    CSTATE_WAITING_FOR_SYNACK,
+    CSTATE_WATING_FOR_ACK,
+    CSTATE_FINWAIT_1,
+    CSTATE_FINWAIT_2,
+    CSTATE_WAITING_FOR_FINACK,
+    CSTATE_WAITING_TO_CLOSE,
+    CSTATE_TIME_WAIT,
+    CSTATE_CLOSING,
+    CSTATE_LISTEN
 };    /* obviously you should have more states */
 
 
@@ -37,13 +45,9 @@ typedef struct
     //for sender windows
     tcp_seq next_seq_to_send;
     tcp_seq last_ack_received;
-    tcp_seq last_byte_sent;
-    size_t send_window_size;
 
     //for receiver windows
     tcp_seq next_expected_seq;
-    tcp_seq last_byte_received;
-    size_t receive_window_size;
 
     size_t max_window_size;
 } context_t;
@@ -105,15 +109,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
 
     ctx->next_seq_to_send = ctx->initial_sequence_num;//initialization
     ctx->last_ack_received = ctx->initial_sequence_num;
-    ctx->last_byte_sent = ctx->initial_sequence_num;
-    size_t send_window_size = 0;
-
-    tcp_seq next_expected_seq = 0;
-    tcp_seq last_byte_received = 0;
-    size_t receive_window_size = 0;
-
-
-
+    ctx->next_expected_seq = -1;//psudo value, will be replaced once the first input arrives
     ctx->max_window_size = 3072;
 
     if (is_active) {
@@ -248,8 +244,37 @@ static void control_loop(mysocket_t sd, context_t *ctx)
         /* check whether it was the network, app, or a close request */
         if (event & APP_DATA)
         {
-            /* the application has requested that data be sent */
-            /* see stcp_app_recv() */
+            if (ctx->connection_state != CSTATE_ESTABLISHED){
+                continue;//we should only be listening
+            }
+            char buffer[STCP_MSS];
+            ssize_t payload_size;
+            if ((payload_size = stcp_app_recv(sd, buffer, STCP_MSS)) > 0){
+                tcp_seq window_start = ctx->last_ack_received;
+                tcp_seq window_end = window_start + ctx->max_window_size;
+
+                while(window_end < ctx->next_seq_to_send + payload_size){//wait until there is spot in the window
+                    continue;
+                }
+                //there is window, now send
+                STCPHeader data_packet = {0};
+                data_packet.th_seq = ctx->next_seq_to_send;
+                data_packet.th_off = 5;
+                data_packet.th_flags = 0;
+
+                //put header with packet
+                char send_buffer[sizeof(STCPHeader) + payload_size];
+                memcpy(send_buffer, &data_packet, sizeof(STCPHeader));
+                memcpy(send_buffer + sizeof(STCPHeader), buffer, payload_size);
+
+                if (stcp_network_send(sd, send_buffer, sizeof(send_buffer), NULL) == -1){
+                    perror("Failed to send data packet");
+                    return;
+                }
+                // Update the next sequence number and window tracking
+                ctx->next_seq_to_send += payload_size;
+            }
+
         }
 
         if (event & NETWORK_DATA) {
