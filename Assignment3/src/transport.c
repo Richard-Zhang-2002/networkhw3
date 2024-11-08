@@ -66,6 +66,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
     ctx->next_seq_to_send = ctx->initial_sequence_num;//initialization
 
     if (is_active) {
+        printf("active-shake\n");
 
         // send syn packet
         STCPHeader syn_packet = {0};
@@ -104,8 +105,10 @@ void transport_init(mysocket_t sd, bool_t is_active)
             errno = ECONNREFUSED;
             return;
         }
+        printf("active-shake-end\n");
 
     } else {
+        printf("passive-shake\n");
         // wait for syn
         STCPHeader syn_packet;
         while (1){
@@ -145,6 +148,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
                 break;
             }
         }
+        printf("passive-shake-end\n");
     }
     ctx->connection_state = CSTATE_ESTABLISHED;
     stcp_unblock_application(sd);
