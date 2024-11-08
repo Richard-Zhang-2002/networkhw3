@@ -79,7 +79,6 @@ void send_fin(mysocket_t sd, context_t *ctx) {
     if (stcp_network_send(sd, &fin_packet, sizeof(fin_packet), NULL) == -1) {
         perror("Failed to send FIN");
     }else{
-        ctx->last_byte_sent += 1;
         ctx->next_seq_to_send += 1;
     }
 }
