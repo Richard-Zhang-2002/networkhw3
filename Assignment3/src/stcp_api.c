@@ -158,6 +158,7 @@ void *stcp_get_context(mysocket_t sd)
 ssize_t stcp_network_recv(mysocket_t sd, void *dst, size_t max_len)
 {
     ssize_t len = _network_recv(sd, dst, max_len);
+    printf("stcp_network_recv: Received length = %zd\n", len);
 
     /* checksum should have been verified by underlying network layer in
      * this implementation.
