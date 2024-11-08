@@ -302,6 +302,8 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 }
 
                 
+            }else{
+                printf("less than 0\n");
             }
         }
 
