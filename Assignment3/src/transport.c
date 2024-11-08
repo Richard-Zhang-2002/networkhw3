@@ -202,7 +202,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             printf("sent\n");
             /* the application has requested that data be sent */
             /* see stcp_app_recv() */
-            char buffer[STCP_MSS];
+            char buffer[1024];
             ssize_t bytes_read = stcp_app_recv(sd, buffer, sizeof(buffer));
             if (bytes_read > 0){//if the app gives us something to send
                 STCPHeader data_packet = {0};
@@ -226,7 +226,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
         if (event & NETWORK_DATA) {
             //printf("network receive 1\n");
             /* received data from STCP peer */
-            char buffer[STCP_MSS];
+            char buffer[1024];
             ssize_t bytes_received = stcp_network_recv(sd, buffer, sizeof(buffer));
             
             //printf("network receive 2\n");
@@ -302,8 +302,6 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 }
 
                 
-            }else{
-                printf("less than 0\n");
             }
         }
 
