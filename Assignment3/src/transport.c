@@ -226,26 +226,6 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 printf("Sending packet: SEQ=%u, Payload Size=%zd\n", data_packet.th_seq, bytes_read);
             }
 
-
-                /*if (bytes_read > 0){//if the app gives us something to send
-                STCPHeader data_packet = {0};
-                data_packet.th_seq = ctx->next_seq_to_send;
-
-                //put the header and packet together
-                char send_buffer[sizeof(STCPHeader) + bytes_read];
-                memcpy(send_buffer, &data_packet, sizeof(STCPHeader));
-                memcpy(send_buffer + sizeof(STCPHeader), buffer, bytes_read);
-
-                if (stcp_network_send(sd, send_buffer, sizeof(send_buffer), NULL) == -1){
-                    perror("Failed to send data");
-                    return;
-                }
-                printf("Sending packet: SEQ=%u, ACK=%u\n", ctx->next_seq_to_send, data_packet.th_ack);
-                ctx->next_seq_to_send += bytes_read;
-            }*/
-
-
-
             printf("sent-end\n");
         }
 
@@ -290,6 +270,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                         perror("Failed to send FIN");
                         return;
                     }
+                    stcp_fin_received(sd);
                     ctx->next_seq_to_send++;
 
                     //wait for the ack for our fin
@@ -303,7 +284,6 @@ static void control_loop(mysocket_t sd, context_t *ctx)
 
                         if (final_ack_packet.th_flags & TH_ACK) {
                             ctx->done = true;
-                            stcp_fin_received(sd);
                             break;
                         }
                     }
@@ -341,6 +321,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 perror("Failed to send FIN");
                 return;
             }
+            stcp_fin_received(sd);
             ctx->next_seq_to_send++;
 
             STCPHeader ack_packet;
@@ -372,7 +353,6 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                         return;
                     }
                     ctx->done = true;
-                    stcp_fin_received(sd);
                     //no need to increment the next bit sent since the connection is over
                     break;
                 }
