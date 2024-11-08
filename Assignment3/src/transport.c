@@ -252,7 +252,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
         if (event & NETWORK_DATA) {
             printf("network receive 1\n");
             /* received data from STCP peer */
-            char buffer[STCP_MSS];
+            char buffer[1024];
             ssize_t bytes_received = stcp_network_recv(sd, buffer, sizeof(buffer));
             
             //printf("network receive 2\n");
