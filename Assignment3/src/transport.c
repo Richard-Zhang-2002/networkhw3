@@ -245,6 +245,9 @@ static void control_loop(mysocket_t sd, context_t *ctx)
         }
 
         if (event & APP_CLOSE_REQUESTED) {//do the handshake for termination
+            stcp_fin_received(sd);
+            return;
+            /*
             STCPHeader fin_packet = {0};
             fin_packet.th_flags = TH_FIN;
             fin_packet.th_seq = ctx->next_seq_to_send;
@@ -288,7 +291,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     //no need to increment the next bit sent since the connection is over
                     break;
                 }
-            }
+            }*/
         }
 
         /* etc. */
