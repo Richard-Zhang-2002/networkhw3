@@ -104,9 +104,17 @@ void transport_init(mysocket_t sd, bool_t is_active)
      */
 
     ctx->next_seq_to_send = ctx->initial_sequence_num;//initialization
-    ctx->window_size = 3072;
     ctx->last_ack_received = ctx->initial_sequence_num;
-    ctx->last_byte_written = ctx->initial_sequence_num;
+    ctx->last_byte_sent = ctx->initial_sequence_num;
+    size_t send_window_size = 0;
+
+    tcp_seq next_expected_seq = 0;
+    tcp_seq last_byte_received = 0;
+    size_t receive_window_size = 0;
+
+
+
+    ctx->max_window_size = 3072;
 
     if (is_active) {
         printf("active-shake\n");
