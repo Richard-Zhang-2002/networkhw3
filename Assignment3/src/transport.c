@@ -63,7 +63,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
      * ECONNREFUSED, etc.) before calling the function.
      */
 
-    ctx->next_seq_to_send = ctx->initial_sequence_num + 1;//initialization
+    ctx->next_seq_to_send = ctx->initial_sequence_num;//initialization
 
     if (is_active) {
 
