@@ -207,8 +207,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
 
 
             while ((bytes_read = stcp_app_recv(sd, buffer, STCP_MSS)) > 0){//cut large chunk of data into smaller packets
-                printf(bytes_read);
-                printf("\n");
+                printf("Bytes read from app: %zd\n", bytes_read);
                 
                 STCPHeader data_packet = {0};
                 data_packet.th_seq = ctx->next_seq_to_send;
