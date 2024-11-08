@@ -250,12 +250,12 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 ssize_t data_bytes = bytes_received - sizeof(STCPHeader);
 
                 printf("Flags set: ");
-                if (flags & TH_FIN) printf("FIN ");
-                if (flags & TH_SYN) printf("SYN ");
-                if (flags & TH_RST) printf("RST ");
-                if (flags & TH_PUSH) printf("PUSH ");
-                if (flags & TH_ACK) printf("ACK ");
-                if (flags & TH_URG) printf("URG ");
+                if (header->th_flags & TH_FIN) printf("FIN ");
+                if (header->th_flags & TH_SYN) printf("SYN ");
+                if (header->th_flags & TH_RST) printf("RST ");
+                if (header->th_flags & TH_PUSH) printf("PUSH ");
+                if (header->th_flags & TH_ACK) printf("ACK ");
+                if (header->th_flags & TH_URG) printf("URG ");
                 printf("\n");
 
                 //tell the other side about the next expected bit
