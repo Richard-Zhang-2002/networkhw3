@@ -224,11 +224,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 ssize_t data_bytes = bytes_received - sizeof(STCPHeader);
 
                 //tell the other side about the next expected bit
-                if (data_bytes > 0){
-                    ctx->next_expected_seq = header->th_seq + data_bytes;
-                } else {
-                    ctx->next_expected_seq = header->th_seq + 1;//no packet, default to be 1
-                }
+                tcp_seq next_expected_seq = (data_bytes > 0) ? (header->th_seq + data_bytes):(header->th_seq + 1);
 
                 if (data_bytes > 0){
                     stcp_app_send(sd, data, data_bytes);
@@ -237,7 +233,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 STCPHeader ack_packet = {0};
                 ack_packet.th_flags = TH_ACK;
                 ack_packet.th_seq = ctx->next_seq_to_send;
-                ack_packet.th_ack = ctx->next_expected_seq;
+                ack_packet.th_ack = next_expected_seq;
 
                 if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1){
                     perror("Failed to send ACK");
