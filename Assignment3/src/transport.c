@@ -269,7 +269,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                         return;
                     }//we send ack regardless
 
-                    if(ctx->connection_state = CSTATE_WAITING_FOR_FIN_ACTIVE){
+                    if(ctx->connection_state == CSTATE_WAITING_FOR_FIN_ACTIVE){
                         printf("got fin from other side\n");
                         ctx->done = true;
                         stcp_fin_received(sd);
