@@ -246,8 +246,8 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             //printf("network receive 2\n");
             if (bytes_received > 0) {//similarly, if received from peer, send to app
                 STCPHeader *header = (STCPHeader *)buffer;
-                char *data = buffer + sizeof(STCPHeader);
-                ssize_t data_bytes = bytes_received - sizeof(STCPHeader);
+                char *data = buffer + 20;
+                ssize_t data_bytes = bytes_received - 20;
 
                 printf("Flags set: ");
                 if (header->th_flags & TH_FIN) printf("FIN ");
@@ -275,6 +275,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     ack_packet.th_flags = TH_ACK;
                     ack_packet.th_seq = ctx->next_seq_to_send;
                     ack_packet.th_ack = next_expected_seq;
+                    ack_packet.th_off = 5;
 
                     if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1){
                         perror("Failed to send ACK for FIN");
@@ -294,6 +295,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     STCPHeader fin_packet = {0};                
                     fin_packet.th_flags = TH_FIN;
                     fin_packet.th_seq = ctx->next_seq_to_send;
+                    fin_packet.th_off = 5;
 
                     if (stcp_network_send(sd, &fin_packet, sizeof(fin_packet), NULL) == -1){
                         perror("Failed to send FIN");
@@ -326,6 +328,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     ack_packet.th_flags = TH_ACK;
                     ack_packet.th_seq = ctx->next_seq_to_send;
                     ack_packet.th_ack = next_expected_seq;
+                    ack_packet.th_off = 5;
 
                     if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1){
                         perror("Failed to send ACK");
@@ -347,6 +350,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             STCPHeader fin_packet = {0};
             fin_packet.th_flags = TH_FIN;
             fin_packet.th_seq = ctx->next_seq_to_send;
+            fin_packet.th_off = 5;
 
             if (stcp_network_send(sd, &fin_packet, sizeof(fin_packet), NULL) == -1){
                 perror("Failed to send FIN");
