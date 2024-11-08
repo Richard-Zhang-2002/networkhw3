@@ -226,18 +226,58 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 //tell the other side about the next expected bit
                 tcp_seq next_expected_seq = (data_bytes > 0) ? (header->th_seq + data_bytes):(header->th_seq + 1);
 
-                if (data_bytes > 0){
-                    stcp_app_send(sd, data, data_bytes);
+                if (header->th_flags & TH_FIN){//if we are suppose to terminate(passive)
+                    if (data_bytes > 0){//send to app regardless
+                        stcp_app_send(sd, data, data_bytes);
+                    }
+                    STCPHeader ack_packet = {0};
+                    ack_packet.th_flags = TH_ACK;
+                    ack_packet.th_seq = ctx->next_seq_to_send;
+                    ack_packet.th_ack = header->next_expected_seq;
+
+                    if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1){
+                        perror("Failed to send ACK for FIN");
+                        return;
+                    }
+
+                    //also send our own fin                    
+                    fin_packet.th_flags = TH_FIN;
+                    fin_packet.th_seq = ctx->next_seq_to_send;
+
+                    if (stcp_network_send(sd, &fin_packet, sizeof(fin_packet), NULL) == -1){
+                        perror("Failed to send FIN");
+                        return;
+                    }
+                    ctx->next_seq_to_send++;
+
+                    //wait for the ack for our fin
+                    STCPHeader final_ack_packet;
+                    while (1){
+                        ssize_t bytes_received = stcp_network_recv(sd, &final_ack_packet, sizeof(final_ack_packet));
+                        if (bytes_received == -1){
+                            perror("Failed to receive final ACK for our FIN");
+                            return;
+                        }
+
+                        if (final_ack_packet.th_flags & TH_ACK) {
+                            ctx->done = true;
+                            stcp_fin_received(sd);
+                            break;
+                        }
+                    }
                 }
+                else if (data_bytes > 0){
+                    stcp_app_send(sd, data, data_bytes);
+                    
+                    STCPHeader ack_packet = {0};
+                    ack_packet.th_flags = TH_ACK;
+                    ack_packet.th_seq = ctx->next_seq_to_send;
+                    ack_packet.th_ack = next_expected_seq;
 
-                STCPHeader ack_packet = {0};
-                ack_packet.th_flags = TH_ACK;
-                ack_packet.th_seq = ctx->next_seq_to_send;
-                ack_packet.th_ack = next_expected_seq;
-
-                if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1){
-                    perror("Failed to send ACK");
-                    return;
+                    if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1){
+                        perror("Failed to send ACK");
+                        return;
+                    }
                 }
 
                 
@@ -245,9 +285,6 @@ static void control_loop(mysocket_t sd, context_t *ctx)
         }
 
         if (event & APP_CLOSE_REQUESTED) {//do the handshake for termination
-            stcp_fin_received(sd);
-            return;
-            /*
             STCPHeader fin_packet = {0};
             fin_packet.th_flags = TH_FIN;
             fin_packet.th_seq = ctx->next_seq_to_send;
@@ -291,7 +328,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     //no need to increment the next bit sent since the connection is over
                     break;
                 }
-            }*/
+            }
         }
 
         /* etc. */
