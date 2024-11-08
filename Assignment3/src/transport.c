@@ -37,7 +37,7 @@ typedef struct
     int connection_state;   /* state of the connection (established, etc.) */
     tcp_seq initial_sequence_num;
     tcp_seq next_seq_to_send;
-    bool_t active
+    bool_t active;
     /* any other connection-wide global variables go here */
 } context_t;
 
