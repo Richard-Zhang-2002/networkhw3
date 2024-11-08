@@ -211,6 +211,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     perror("Failed to send data");
                     return;
                 }
+                ctx->next_seq_to_send += bytes_read;
             }
         }
 
@@ -226,12 +227,13 @@ static void control_loop(mysocket_t sd, context_t *ctx)
         if (event & APP_CLOSE_REQUESTED) {//do the handshake for termination
             STCPHeader fin_packet = {0};
             fin_packet.th_flags = TH_FIN;
-            fin_packet.th_seq = ctx->initial_sequence_num; 
+            fin_packet.th_seq = ctx->next_seq_to_send;
 
             if (stcp_network_send(sd, &fin_packet, sizeof(fin_packet), NULL) == -1){
                 perror("Failed to send FIN");
                 return;
             }
+            ctx->next_seq_to_send++;
 
             STCPHeader ack_packet;
             while (1){//wait for ack
@@ -241,8 +243,29 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     return;
                 }
                 if (ack_packet.th_flags & TH_ACK){//if ack is received
+                    break;
+                }
+            }
+
+            STCPHeader fin_ack_packet;
+            while (1){//wait for the peer's fin
+                ssize_t bytes_received = stcp_network_recv(sd, &fin_ack_packet, sizeof(fin_ack_packet));
+                if (bytes_received == -1){
+                    perror("Failed to receive peer's FIN");
+                    return;
+                }
+                if (fin_ack_packet.th_flags & TH_FIN){//if we get the fin from peer, send an acknowledgement back
+                    STCPHeader ack_packet = {0};
+                    ack_packet.th_flags = TH_ACK;
+                    ack_packet.th_seq = ctx->next_seq_to_send;
+                    ack_packet.th_ack = fin_ack_packet.th_seq + 1;
+                    if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1){
+                        perror("Failed to send ACK for peer's FIN");
+                        return;
+                    }
                     ctx->done = true;
                     stcp_fin_received(sd);
+                    //no need to increment the next bit sent since the connection is over
                     break;
                 }
             }
