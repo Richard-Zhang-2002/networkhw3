@@ -21,17 +21,18 @@
 
 
 enum { 
-    CSTATE_ESTABLISHED
+    CSTATE_ESTABLISHED,
     CSTATE_WAITING_FOR_SYNACK,
-    CSTATE_WATING_FOR_ACK,
+    CSTATE_WAITING_FOR_ACK,
     CSTATE_FINWAIT_1,
     CSTATE_FINWAIT_2,
     CSTATE_WAITING_FOR_FINACK,
     CSTATE_WAITING_TO_CLOSE,
     CSTATE_TIME_WAIT,
     CSTATE_CLOSING,
-    CSTATE_LISTEN,
+    CSTATE_LISTEN
 };  /* obviously you should have more states */
+
 
 
 /* this structure is global to a mysocket descriptor */
