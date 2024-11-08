@@ -332,6 +332,8 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     printf("Receiving packet: SEQ=%u, ACK=%u\n", header->th_seq, header->th_ack);
 
                     printf("received-end\n");
+                }else{
+                    printf("databyte 0 \n")
                 }
 
                 
