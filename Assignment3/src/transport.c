@@ -113,7 +113,6 @@ void transport_init(mysocket_t sd, bool_t is_active)
     ctx->max_window_size = 3072;
 
     if (is_active) {
-        printf("active-shake\n");
 
         // send syn packet
         STCPHeader syn_packet = {0};
@@ -152,10 +151,8 @@ void transport_init(mysocket_t sd, bool_t is_active)
             errno = ECONNREFUSED;
             return;
         }
-        printf("active-shake-end\n");
 
     } else {
-        printf("passive-shake\n");
         // wait for syn
         STCPHeader syn_packet;
         while (1){
@@ -195,7 +192,6 @@ void transport_init(mysocket_t sd, bool_t is_active)
                 break;
             }
         }
-        printf("passive-shake-end\n");
     }
     ctx->connection_state = CSTATE_ESTABLISHED;
     stcp_unblock_application(sd);
@@ -254,6 +250,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 tcp_seq window_end = window_start + ctx->max_window_size;
 
                 while(window_end < ctx->next_seq_to_send + payload_size){//wait until there is spot in the window
+                    printf("ctn");
                     continue;
                 }
                 //there is window, now send
