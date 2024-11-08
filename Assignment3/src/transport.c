@@ -333,7 +333,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
 
                     printf("received-end\n");
                 }else{
-                    printf("databyte 0 \n")
+                    printf("databyte 0 \n");
                 }
 
                 
