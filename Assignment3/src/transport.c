@@ -270,6 +270,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     }//we send ack regardless
 
                     if(ctx->connection_state = CSTATE_WAITING_FOR_FIN_ACTIVE){
+                        printf("got fin from other side\n");
                         ctx->done = true;
                         stcp_fin_received(sd);
                         break;
@@ -300,6 +301,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                             stcp_fin_received(sd);
                             break;
                         }else if(ctx->connection_state == CSTATE_WAITING_FOR_FINACK_ACTIVE){//for the active one, it sends fin, get ack, now it should be expecting a fin from the other side
+                            printf("got fin ack from other side\n");
                             ctx->connection_state = CSTATE_WAITING_FOR_FIN_ACTIVE;
                         }
                     }
