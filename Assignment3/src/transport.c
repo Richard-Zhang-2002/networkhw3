@@ -20,10 +20,13 @@
 #include "transport.h"
 
 
-enum { 
-    CSTATE_ESTABLISHED
-
-};    /* obviously you should have more states */
+enum
+{
+    CSTATE_ESTABLISHED,
+    CSTATE_WAITING_FOR_FINACK_PASSIVE,
+    CSTATE_WAITING_FOR_FINACK_ACTIVE,
+    CSTATE_WAITING_FOR_FIN_ACTIVE,
+};   /* obviously you should have more states */
 
 
 /* this structure is global to a mysocket descriptor */
@@ -34,6 +37,7 @@ typedef struct
     int connection_state;   /* state of the connection (established, etc.) */
     tcp_seq initial_sequence_num;
     tcp_seq next_seq_to_send;
+    bool_t active
     /* any other connection-wide global variables go here */
 } context_t;
 
@@ -64,6 +68,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
      */
 
     ctx->next_seq_to_send = ctx->initial_sequence_num;//initialization
+    ctx->active = is_active;//save whether we are handling active or passive link here
 
     if (is_active) {
         printf("active-shake\n");
@@ -199,6 +204,9 @@ static void control_loop(mysocket_t sd, context_t *ctx)
         /* check whether it was the network, app, or a close request */
         if (event & APP_DATA)
         {
+            if(ctx->connection_state != CSTATE_ESTABLISHED){
+                continue;//if we are closing the connection, we won't be sending anything anymore
+            }
             printf("sent\n");
             /* the application has requested that data be sent */
             /* see stcp_app_recv() */
@@ -259,8 +267,16 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1){
                         perror("Failed to send ACK for FIN");
                         return;
+                    }//we send ack regardless
+
+                    if(ctx->connection_state = CSTATE_WAITING_FOR_FIN_ACTIVE){
+                        ctx->done = true;
+                        stcp_fin_received(sd);
+                        break;
+                        //in this case we should just send an ack and then terminate, we already sent ack in the past
                     }
 
+                    //the only other possible case of getting a fin is being the passive side and receive a fin, in this case we send an ack along with our own fin, then wait for the other side
                     //also send our own fin
                     STCPHeader fin_packet = {0};                
                     fin_packet.th_flags = TH_FIN;
@@ -271,28 +287,24 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                         return;
                     }
                     ctx->next_seq_to_send++;
-
-                    //wait for the ack for our fin
-                    STCPHeader final_ack_packet;
-                    while (1){
-                        ssize_t bytes_received = stcp_network_recv(sd, &final_ack_packet, sizeof(final_ack_packet));
-                        if (bytes_received == -1){
-                            perror("Failed to receive final ACK for our FIN");
-                            return;
-                        }
-
-                        if (final_ack_packet.th_flags & TH_ACK) {
-                            ctx->done = true;
-                            stcp_fin_received(sd);
-                            break;
-                        }
-                    }
+                    ctx->connection_state = CSTATE_WAITING_FOR_FINACK_PASSIVE;//now we are just waiting for the ack from the other side
                     printf("fin-received-end\n");
                 }
                 else if (data_bytes > 0){
                     printf("received\n");
                     stcp_app_send(sd, data, data_bytes);
+                    
+                    if ((header->th_flags & TH_ACK)){//basically we already send fin and is now waiting for the final ack, and now we get it, so we close
+                        if(ctx->connection_state == CSTATE_WAITING_FOR_FINACK_PASSIVE){
+                            ctx->done = true;
+                            stcp_fin_received(sd);
+                            break;
+                        }else if(ctx->connection_state == CSTATE_WAITING_FOR_FINACK_ACTIVE){//for the active one, it sends fin, get ack, now it should be expecting a fin from the other side
+                            ctx->connection_state = CSTATE_WAITING_FOR_FIN_ACTIVE;
+                        }
+                    }
 
+                    //otherwise if the header is not ack, we give it an ack back
                     STCPHeader ack_packet = {0};
                     ack_packet.th_flags = TH_ACK;
                     ack_packet.th_seq = ctx->next_seq_to_send;
@@ -311,7 +323,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             }
         }
 
-        if (event & APP_CLOSE_REQUESTED) {//do the handshake for termination
+        if (event & APP_CLOSE_REQUESTED) {//do the handshake for termination(only for active since only it will get notified by the application)
             printf("fin-sent\n");
             STCPHeader fin_packet = {0};
             fin_packet.th_flags = TH_FIN;
@@ -323,41 +335,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             }
             ctx->next_seq_to_send++;
 
-            bool ack_received = false;
-            bool fin_received = false;
-            STCPHeader received_packet;
-
-            while (!(ack_received && fin_received)){
-                ssize_t bytes_received = stcp_network_recv(sd, &received_packet, sizeof(received_packet));
-                if (bytes_received == -1) {
-                    perror("Failed to receive packet during FIN-WAIT");
-                    return;
-                }
-
-                if ((received_packet.th_flags & TH_ACK) && !ack_received){//if we receive an ack(for our fin)
-                    ack_received = true;
-                    printf("ACK received for our FIN\n");
-                }
-
-                if (received_packet.th_flags & TH_FIN){//if we receive a fin(from the other side's ending signal)
-                    fin_received = true;
-                    printf("FIN received from peer\n");
-
-                    //ack it
-                    STCPHeader ack_packet = {0};
-                    ack_packet.th_flags = TH_ACK;
-                    ack_packet.th_seq = ctx->next_seq_to_send;
-                    ack_packet.th_ack = received_packet.th_seq + 1;
-                    if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1){
-                        perror("Failed to send ACK for peer's FIN");
-                        return;
-                    }
-                    printf("ACK sent for peer's FIN\n");
-                }
-            }
-            ctx->done = true;
-            stcp_fin_received(sd);
-            printf("fin-sent-end\n");
+            ctx->connection_state = CSTATE_WAITING_FOR_FINACK_ACTIVE; //now we sent the fin, wait for the other side's response
         }
 
         /* etc. */
