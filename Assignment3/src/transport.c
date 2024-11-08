@@ -217,6 +217,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 }
                 ctx->next_seq_to_send += bytes_read;
             }
+            printf("Sending packet: SEQ=%u, ACK=%u\n", ctx->next_seq_to_send, ack_packet.th_ack);
             printf("sent-end\n");
         }
 
@@ -288,6 +289,8 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                         perror("Failed to send ACK");
                         return;
                     }
+                    printf("Receiving packet: SEQ=%u, ACK=%u\n", header->th_seq, header->th_ack);
+
                     printf("received-end\n");
                 }
 
