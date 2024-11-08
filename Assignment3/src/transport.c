@@ -33,7 +33,7 @@ typedef struct
 
     int connection_state;   /* state of the connection (established, etc.) */
     tcp_seq initial_sequence_num;
-
+    tcp_seq next_seq_to_send;
     /* any other connection-wide global variables go here */
 } context_t;
 
@@ -63,6 +63,8 @@ void transport_init(mysocket_t sd, bool_t is_active)
      * ECONNREFUSED, etc.) before calling the function.
      */
 
+    ctx->next_seq_to_send = ctx->initial_sequence_num + 1;//initialization
+
     if (is_active) {
 
         // send syn packet
@@ -74,6 +76,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
             errno = ECONNREFUSED;
             return;
         }
+        ctx->next_seq_to_send++;
 
         // wait for syn ack
         STCPHeader syn_ack_packet;
@@ -101,6 +104,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
             errno = ECONNREFUSED;
             return;
         }
+        ctx->next_seq_to_send++;
 
     } else {
         // wait for syn
@@ -127,6 +131,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
             perror("Failed to send SYN ACK");
             return;
         }
+        ctx->next_seq_to_send++;
 
         // wait for ack
         STCPHeader ack_packet;
@@ -194,9 +199,17 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             char buffer[STCP_MSS];
             ssize_t bytes_read = stcp_app_recv(sd, buffer, sizeof(buffer));
             if (bytes_read > 0){//if the app gives us something to send
-                if (stcp_network_send(sd, buffer, bytes_read, NULL) == -1){
+                STCPHeader data_packet = {0};
+                data_packet.th_seq = ctx->next_seq_to_send;
+
+                //put the header and packet together
+                char send_buffer[sizeof(STCPHeader) + bytes_read];
+                memcpy(send_buffer, &data_packet, sizeof(STCPHeader));
+                memcpy(send_buffer + sizeof(STCPHeader), buffer, bytes_read);
+
+                if (stcp_network_send(sd, send_buffer, sizeof(send_buffer), NULL) == -1){
                     perror("Failed to send data");
-                    ctx->done = true;
+                    return;
                 }
             }
         }
