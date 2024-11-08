@@ -34,7 +34,18 @@ typedef struct
     int connection_state;   /* state of the connection (established, etc.) */
     tcp_seq initial_sequence_num;
 
-    /* any other connection-wide global variables go here */
+    //for sender windows
+    tcp_seq next_seq_to_send;
+    tcp_seq last_ack_received;
+    tcp_seq last_byte_sent;
+    size_t send_window_size;
+
+    //for receiver windows
+    tcp_seq next_expected_seq;
+    tcp_seq last_byte_received;
+    size_t receive_window_size;
+
+    size_t max_window_size;
 } context_t;
 
 
@@ -63,6 +74,9 @@ void send_fin(mysocket_t sd, context_t *ctx) {
 
     if (stcp_network_send(sd, &fin_packet, sizeof(fin_packet), NULL) == -1) {
         perror("Failed to send FIN");
+    }else{
+        ctx->last_byte_sent += 1;
+        ctx->next_seq_to_send += 1;
     }
 }
 
@@ -199,7 +213,7 @@ static void generate_initial_seq_num(context_t *ctx)
     ctx->initial_sequence_num = 1;
 #else
     /* you have to fill this up */
-    /*ctx->initial_sequence_num =;*/
+    ctx->initial_sequence_num = rand() % 256; //result from 0 to 255 inclusive
 #endif
 }
 
