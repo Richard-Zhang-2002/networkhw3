@@ -272,6 +272,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 }
                 // Update the next sequence number and window tracking
                 ctx->next_seq_to_send += payload_size;
+                printf("payload sent\n");
             }
 
         }
