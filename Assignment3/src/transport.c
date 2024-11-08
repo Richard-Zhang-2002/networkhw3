@@ -254,6 +254,9 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 //printf("network receive 3\n");
                 //receiver died here
 
+                if(header -> th_flags & TH_ACK){
+                    printf("ack received\n");
+                }
                 if (header->th_flags & TH_FIN){//if we are suppose to terminate(passive)
                     printf("fin-received\n");
                     if (data_bytes > 0){//send to app regardless
