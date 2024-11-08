@@ -229,6 +229,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 tcp_seq next_expected_seq = (data_bytes > 0) ? (header->th_seq + data_bytes):(header->th_seq + 1);
 
                 if (header->th_flags & TH_FIN){//if we are suppose to terminate(passive)
+                    printf("fin-received\n");
                     if (data_bytes > 0){//send to app regardless
                         stcp_app_send(sd, data, data_bytes);
                     }
@@ -268,6 +269,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                             break;
                         }
                     }
+                    printf("fin-received-end\n");
                 }
                 else if (data_bytes > 0){
                     printf("received\n");
@@ -290,6 +292,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
         }
 
         if (event & APP_CLOSE_REQUESTED) {//do the handshake for termination
+            printf("fin-sent\n");
             STCPHeader fin_packet = {0};
             fin_packet.th_flags = TH_FIN;
             fin_packet.th_seq = ctx->next_seq_to_send;
@@ -334,6 +337,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     break;
                 }
             }
+            printf("fin-sent-end\n");
         }
 
         /* etc. */
