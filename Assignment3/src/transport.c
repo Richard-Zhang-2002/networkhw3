@@ -240,17 +240,19 @@ static void control_loop(mysocket_t sd, context_t *ctx)
         /* check whether it was the network, app, or a close request */
         if (event & APP_DATA)
         {
+            printf("app data\n");
             if (ctx->connection_state != CSTATE_ESTABLISHED){
                 continue;//we should only be listening
             }
             char buffer[STCP_MSS];
             ssize_t payload_size;
             if ((payload_size = stcp_app_recv(sd, buffer, STCP_MSS)) > 0){
+                printf("after if\n");
                 tcp_seq window_start = ctx->last_ack_received;
                 tcp_seq window_end = window_start + ctx->max_window_size;
 
                 while(window_end < ctx->next_seq_to_send + payload_size){//wait until there is spot in the window
-                    printf("ctn");
+                    printf("ctn\n");
                     continue;
                 }
                 //there is window, now send
