@@ -64,19 +64,83 @@ void transport_init(mysocket_t sd, bool_t is_active)
      */
 
     if (is_active) {
+
         // send syn packet
+        STCPHeader syn_packet = {0};
+        syn_packet.th_flags = TH_SYN;
+        syn_packet.th_seq = ctx->initial_sequence_num;
+        if (stcp_network_send(sd, &syn_packet, sizeof(syn_packet), NULL) == -1){//syn send failed
+            perror("Failed to send SYN");
+            errno = ECONNREFUSED;
+            return;
+        }
 
         // wait for syn ack
+        STCPHeader syn_ack_packet;
+        while (1){
+            ssize_t bytes_received = stcp_network_recv(sd, &syn_ack_packet, sizeof(syn_ack_packet));
+            if (bytes_received == -1){
+                perror("Failed to receive SYN ACK");
+                errno = ECONNREFUSED;
+                return;
+            }
+            //if ack exists
+            if ((syn_ack_packet.th_flags & (TH_SYN | TH_ACK)) == (TH_SYN | TH_ACK)){//syn ack is essentially joining the two
+                break;
+            }
+        }
 
         // send ack
+        STCPHeader ack_packet = {0};
+        ack_packet.th_flags = TH_ACK;//just use normal ack this time
+        ack_packet.th_seq = syn_packet.th_seq + 1;//the sequence number(+1 since ack and syn here takes 1 even if no payload exists)
+        ack_packet.th_ack = syn_ack_packet.th_seq + 1;//next expected number
+        //if send failed
+        if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1){
+            perror("Failed to send ACK");
+            errno = ECONNREFUSED;
+            return;
+        }
 
     } else {
         // wait for syn
+        STCPHeader syn_packet;
+        while (1){
+            ssize_t bytes_received = stcp_network_recv(sd, &syn_packet, sizeof(syn_packet));
+            if (bytes_received == -1){
+                perror("Failed to receive SYN");
+                errno = ECONNREFUSED;
+                return;
+            }
+            //if ack exists
+            if ((syn_packet.th_flags & (TH_SYN)) == (TH_SYN)){
+                break;
+            }
+        }
 
         // send syn ack
+        STCPHeader syn_ack_packet = {0};
+        syn_ack_packet.th_flags = TH_SYN | TH_ACK;
+        syn_ack_packet.th_seq = ctx->initial_sequence_num;
+        syn_ack_packet.th_ack = syn_packet.th_seq + 1;
+        if (stcp_network_send(sd, &syn_ack_packet, sizeof(syn_ack_packet), NULL) == -1){//syn ack send failed
+            perror("Failed to send SYN ACK");
+            return;
+        }
 
         // wait for ack
-
+        STCPHeader ack_packet;
+        while (1){
+            ssize_t bytes_received = stcp_network_recv(sd, &ack_packet, sizeof(ack_packet));
+            if (bytes_received == -1){
+                perror("Failed to receive ACK");
+                return;
+            }
+            //if ack exists
+            if ((ack_packet.th_flags & (TH_ACK)) == (TH_ACK)){
+                break;
+            }
+        }
     }
     ctx->connection_state = CSTATE_ESTABLISHED;
     stcp_unblock_application(sd);
@@ -98,7 +162,7 @@ static void generate_initial_seq_num(context_t *ctx)
     ctx->initial_sequence_num = 1;
 #else
     /* you have to fill this up */
-    /*ctx->initial_sequence_num =;*/
+    ctx->initial_sequence_num = rand() % 256; //result from 0 to 255 inclusive
 #endif
 }
 
@@ -127,14 +191,48 @@ static void control_loop(mysocket_t sd, context_t *ctx)
         {
             /* the application has requested that data be sent */
             /* see stcp_app_recv() */
+            char buffer[STCP_MSS];
+            ssize_t bytes_read = stcp_app_recv(sd, buffer, sizeof(buffer));
+            if (bytes_read > 0){//if the app gives us something to send
+                if (stcp_network_send(sd, buffer, bytes_read, NULL) == -1){
+                    perror("Failed to send data");
+                    ctx->done = true;
+                }
+            }
         }
 
         if (event & NETWORK_DATA) {
             /* received data from STCP peer */
+            char buffer[STCP_MSS];
+            ssize_t bytes_received = stcp_network_recv(sd, buffer, sizeof(buffer));
+            if (bytes_received > 0) {//similarly, if received from peer, send to app
+                stcp_app_send(sd, buffer, bytes_received);
+            }
         }
 
-        if (event & APP_CLOSE_REQUESTED) {
+        if (event & APP_CLOSE_REQUESTED) {//do the handshake for termination
+            STCPHeader fin_packet = {0};
+            fin_packet.th_flags = TH_FIN;
+            fin_packet.th_seq = ctx->initial_sequence_num; 
 
+            if (stcp_network_send(sd, &fin_packet, sizeof(fin_packet), NULL) == -1){
+                perror("Failed to send FIN");
+                return;
+            }
+
+            STCPHeader ack_packet;
+            while (1){//wait for ack
+                ssize_t bytes_received = stcp_network_recv(sd, &ack_packet, sizeof(ack_packet));
+                if (bytes_received == -1){
+                    perror("Failed to receive ACK for FIN");
+                    return;
+                }
+                if (ack_packet.th_flags & TH_ACK){//if ack is received
+                    ctx->done = true;
+                    stcp_fin_received(sd);
+                    break;
+                }
+            }
         }
 
         /* etc. */
