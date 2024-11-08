@@ -30,8 +30,8 @@ enum {
     CSTATE_WAITING_TO_CLOSE,
     CSTATE_TIME_WAIT,
     CSTATE_CLOSING,
-    CSTATE_LISTEN
-};    /* obviously you should have more states */
+    CSTATE_LISTEN,
+};  /* obviously you should have more states */
 
 
 /* this structure is global to a mysocket descriptor */
