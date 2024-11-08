@@ -278,10 +278,12 @@ static void control_loop(mysocket_t sd, context_t *ctx)
         }
 
         if (event & NETWORK_DATA) {
+            printf("network data\n");
             /* received data from STCP peer */
         }
 
         if (event & APP_CLOSE_REQUESTED) {
+            printf("app close\n");
 
         }
 
