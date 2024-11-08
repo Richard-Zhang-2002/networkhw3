@@ -219,8 +219,8 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             char buffer[STCP_MSS];
             ssize_t bytes_received = stcp_network_recv(sd, buffer, sizeof(buffer));
             if (bytes_received > 0) {//similarly, if received from peer, send to app
-                STCPHeader *header = (STCPHeader *)recv_buffer;
-                char *data = recv_buffer + sizeof(STCPHeader);
+                STCPHeader *header = (STCPHeader *)buffer;
+                char *data = buffer + sizeof(STCPHeader);
                 ssize_t data_bytes = bytes_received - sizeof(STCPHeader);
 
                 //tell the other side about the next expected bit
