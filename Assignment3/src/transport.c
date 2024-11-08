@@ -270,7 +270,6 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                         perror("Failed to send FIN");
                         return;
                     }
-                    stcp_fin_received(sd);
                     ctx->next_seq_to_send++;
 
                     //wait for the ack for our fin
@@ -284,6 +283,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
 
                         if (final_ack_packet.th_flags & TH_ACK) {
                             ctx->done = true;
+                            stcp_fin_received(sd);
                             break;
                         }
                     }
@@ -321,42 +321,42 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 perror("Failed to send FIN");
                 return;
             }
-            stcp_fin_received(sd);
             ctx->next_seq_to_send++;
 
-            STCPHeader ack_packet;
-            while (1){//wait for ack
-                ssize_t bytes_received = stcp_network_recv(sd, &ack_packet, sizeof(ack_packet));
-                if (bytes_received == -1){
-                    perror("Failed to receive ACK for FIN");
-                    return;
-                }
-                if (ack_packet.th_flags & TH_ACK){//if ack is received
-                    break;
-                }
-            }
+            bool ack_received = false;
+            bool fin_received = false;
+            STCPHeader received_packet;
 
-            STCPHeader fin_ack_packet;
-            while (1){//wait for the peer's fin
-                ssize_t bytes_received = stcp_network_recv(sd, &fin_ack_packet, sizeof(fin_ack_packet));
-                if (bytes_received == -1){
-                    perror("Failed to receive peer's FIN");
+            while (!(ack_received && fin_received)){
+                ssize_t bytes_received = stcp_network_recv(sd, &received_packet, sizeof(received_packet));
+                if (bytes_received == -1) {
+                    perror("Failed to receive packet during FIN-WAIT");
                     return;
                 }
-                if (fin_ack_packet.th_flags & TH_FIN){//if we get the fin from peer, send an acknowledgement back
+
+                if ((received_packet.th_flags & TH_ACK) && !ack_received){//if we receive an ack(for our fin)
+                    ack_received = true;
+                    printf("ACK received for our FIN\n");
+                }
+
+                if (received_packet.th_flags & TH_FIN){//if we receive a fin(from the other side's ending signal)
+                    fin_received = true;
+                    printf("FIN received from peer\n");
+
+                    //ack it
                     STCPHeader ack_packet = {0};
                     ack_packet.th_flags = TH_ACK;
                     ack_packet.th_seq = ctx->next_seq_to_send;
-                    ack_packet.th_ack = fin_ack_packet.th_seq + 1;
+                    ack_packet.th_ack = received_packet.th_seq + 1;
                     if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1){
                         perror("Failed to send ACK for peer's FIN");
                         return;
                     }
-                    ctx->done = true;
-                    //no need to increment the next bit sent since the connection is over
-                    break;
+                    printf("ACK sent for peer's FIN\n");
                 }
             }
+            ctx->done = true;
+            stcp_fin_received(sd);
             printf("fin-sent-end\n");
         }
 
