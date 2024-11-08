@@ -190,9 +190,11 @@ static void control_loop(mysocket_t sd, context_t *ctx)
     {
         unsigned int event;
 
+        printf("prior wait event\n");
         /* see stcp_api.h or stcp_api.c for details of this function */
         /* XXX: you will need to change some of these arguments! */
         event = stcp_wait_for_event(sd, ANY_EVENT, NULL);
+        printf("post wait event\n");
 
         /* check whether it was the network, app, or a close request */
         if (event & APP_DATA)
