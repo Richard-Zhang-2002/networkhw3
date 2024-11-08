@@ -104,7 +104,6 @@ void transport_init(mysocket_t sd, bool_t is_active)
             errno = ECONNREFUSED;
             return;
         }
-        ctx->next_seq_to_send++;
 
     } else {
         // wait for syn
@@ -220,7 +219,32 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             char buffer[STCP_MSS];
             ssize_t bytes_received = stcp_network_recv(sd, buffer, sizeof(buffer));
             if (bytes_received > 0) {//similarly, if received from peer, send to app
-                stcp_app_send(sd, buffer, bytes_received);
+                STCPHeader *header = (STCPHeader *)recv_buffer;
+                char *data = recv_buffer + sizeof(STCPHeader);
+                ssize_t data_bytes = bytes_received - sizeof(STCPHeader);
+
+                //tell the other side about the next expected bit
+                if (data_bytes > 0){
+                    ctx->next_expected_seq = header->th_seq + data_bytes;
+                } else {
+                    ctx->next_expected_seq = header->th_seq + 1;//no packet, default to be 1
+                }
+
+                if (data_bytes > 0){
+                    stcp_app_send(sd, data, data_bytes);
+                }
+
+                STCPHeader ack_packet = {0};
+                ack_packet.th_flags = TH_ACK;
+                ack_packet.th_seq = ctx->next_seq_to_send;
+                ack_packet.th_ack = ctx->next_expected_seq;
+
+                if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1){
+                    perror("Failed to send ACK");
+                    return;
+                }
+
+                
             }
         }
 
