@@ -303,9 +303,11 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     ctx->connection_state = CSTATE_WAITING_FOR_FINACK_PASSIVE;//now we are just waiting for the ack from the other side
                     printf("fin-received-end\n");
                 }
-                else if (data_bytes > 0){
+                else{
                     printf("received\n");
-                    stcp_app_send(sd, data, data_bytes);
+                    if (data_bytes > 0){
+                        stcp_app_send(sd, data, data_bytes);
+                    }
                     
                     if ((header->th_flags & TH_ACK)){//basically we already send fin and is now waiting for the final ack, and now we get it, so we close
                         printf("ack received\n");
@@ -332,8 +334,6 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     printf("Receiving packet: SEQ=%u, ACK=%u\n", header->th_seq, header->th_ack);
 
                     printf("received-end\n");
-                }else{
-                    printf("databyte 0 \n");
                 }
 
                 
