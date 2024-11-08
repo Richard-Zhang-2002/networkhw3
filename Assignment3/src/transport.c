@@ -203,42 +203,11 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             /* the application has requested that data be sent */
             /* see stcp_app_recv() */
             char buffer[STCP_MSS];
-            ssize_t bytes_read = stcp_app_recv(sd, buffer, sizeof(buffer));
+            ssize_t bytes_read;
 
 
-        while ((bytes_read = stcp_app_recv(sd, buffer, STCP_MSS)) > 0) {
+            while ((bytes_read = stcp_app_recv(sd, buffer, STCP_MSS)) > 0){//cut large chunk of data into smaller packets
                 
-                STCPHeader data_packet = {0};
-                data_packet.th_seq = ctx->next_seq_to_send;
-
-                // Allocate space for the packet (header + payload)
-                char send_buffer[sizeof(STCPHeader) + bytes_read];
-                memcpy(send_buffer, &data_packet, sizeof(STCPHeader));
-                memcpy(send_buffer + sizeof(STCPHeader), buffer, bytes_read);
-
-                // Send the packet
-                if (stcp_network_send(sd, send_buffer, sizeof(send_buffer), NULL) == -1) {
-                    perror("Failed to send data");
-                    return;
-                }
-
-                // Update sequence number based on the payload size
-                ctx->next_seq_to_send += bytes_read;
-                printf("Sending packet: SEQ=%u, Payload Size=%zd\n", data_packet.th_seq, bytes_read);
-            }
-
-
-
-
-
-
-
-
-
-
-
-
-            /*if (bytes_read > 0){//if the app gives us something to send
                 STCPHeader data_packet = {0};
                 data_packet.th_seq = ctx->next_seq_to_send;
 
@@ -251,9 +220,11 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     perror("Failed to send data");
                     return;
                 }
-                printf("Sending packet: SEQ=%u, ACK=%u\n", ctx->next_seq_to_send, data_packet.th_ack);
+
                 ctx->next_seq_to_send += bytes_read;
-            }*/
+                printf("Sending packet: SEQ=%u, Payload Size=%zd\n", data_packet.th_seq, bytes_read);
+            }
+
             printf("sent-end\n");
         }
 
