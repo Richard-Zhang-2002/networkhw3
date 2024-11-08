@@ -323,6 +323,8 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 }
 
                 
+            }else{
+                printf("ELSE!!!\n");
             }
         }
 
