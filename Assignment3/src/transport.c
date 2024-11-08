@@ -190,11 +190,11 @@ static void control_loop(mysocket_t sd, context_t *ctx)
     {
         unsigned int event;
 
-        printf("prior wait event\n");
+        //printf("prior wait event\n");
         /* see stcp_api.h or stcp_api.c for details of this function */
         /* XXX: you will need to change some of these arguments! */
         event = stcp_wait_for_event(sd, ANY_EVENT, NULL);
-        printf("post wait event\n");
+        //printf("post wait event\n");
 
         /* check whether it was the network, app, or a close request */
         if (event & APP_DATA)
@@ -224,12 +224,12 @@ static void control_loop(mysocket_t sd, context_t *ctx)
         }
 
         if (event & NETWORK_DATA) {
-            printf("network receive 1\n");
+            //printf("network receive 1\n");
             /* received data from STCP peer */
             char buffer[STCP_MSS];
             ssize_t bytes_received = stcp_network_recv(sd, buffer, sizeof(buffer));
             
-            printf("network receive 2\n");
+            //printf("network receive 2\n");
             if (bytes_received > 0) {//similarly, if received from peer, send to app
                 STCPHeader *header = (STCPHeader *)buffer;
                 char *data = buffer + sizeof(STCPHeader);
@@ -237,7 +237,8 @@ static void control_loop(mysocket_t sd, context_t *ctx)
 
                 //tell the other side about the next expected bit
                 tcp_seq next_expected_seq = (data_bytes > 0) ? (header->th_seq + data_bytes):(header->th_seq + 1);
-                printf("network receive 3\n");
+                //printf("network receive 3\n");
+                //receiver died here
 
                 if (header->th_flags & TH_FIN){//if we are suppose to terminate(passive)
                     printf("fin-received\n");
