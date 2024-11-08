@@ -193,6 +193,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
         /* check whether it was the network, app, or a close request */
         if (event & APP_DATA)
         {
+            printf("sent\n");
             /* the application has requested that data be sent */
             /* see stcp_app_recv() */
             char buffer[STCP_MSS];
@@ -212,6 +213,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 }
                 ctx->next_seq_to_send += bytes_read;
             }
+            printf("sent-end\n");
         }
 
         if (event & NETWORK_DATA) {
@@ -268,6 +270,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     }
                 }
                 else if (data_bytes > 0){
+                    printf("received\n");
                     stcp_app_send(sd, data, data_bytes);
 
                     STCPHeader ack_packet = {0};
@@ -279,6 +282,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                         perror("Failed to send ACK");
                         return;
                     }
+                    printf("received-end\n");
                 }
 
                 
