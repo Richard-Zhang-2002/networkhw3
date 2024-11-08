@@ -20,13 +20,10 @@
 #include "transport.h"
 
 
-enum
-{
-    CSTATE_ESTABLISHED,
-    CSTATE_WAITING_FOR_FINACK_PASSIVE,
-    CSTATE_WAITING_FOR_FINACK_ACTIVE,
-    CSTATE_WAITING_FOR_FIN_ACTIVE,
-};   /* obviously you should have more states */
+enum { 
+    CSTATE_ESTABLISHED
+
+};    /* obviously you should have more states */
 
 
 /* this structure is global to a mysocket descriptor */
@@ -36,14 +33,39 @@ typedef struct
 
     int connection_state;   /* state of the connection (established, etc.) */
     tcp_seq initial_sequence_num;
-    tcp_seq next_seq_to_send;
-    bool_t active;
+
     /* any other connection-wide global variables go here */
 } context_t;
 
 
 static void generate_initial_seq_num(context_t *ctx);
 static void control_loop(mysocket_t sd, context_t *ctx);
+
+//send an ack, helper function
+void send_ack(mysocket_t sd, context_t *ctx, tcp_seq ack_num) {
+    STCPHeader ack_packet = {0};
+    ack_packet.th_flags = TH_ACK;
+    ack_packet.th_seq = ctx->next_seq_to_send;
+    ack_packet.th_ack = ack_num;
+    ack_packet.th_off = 5;
+
+    if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1) {
+        perror("Failed to send ACK");
+    }
+}
+
+// send a fin, helper function
+void send_fin(mysocket_t sd, context_t *ctx) {
+    STCPHeader fin_packet = {0};
+    fin_packet.th_flags = TH_FIN;
+    fin_packet.th_seq = ctx->next_seq_to_send;
+    fin_packet.th_off = 5;
+
+    if (stcp_network_send(sd, &fin_packet, sizeof(fin_packet), NULL) == -1) {
+        perror("Failed to send FIN");
+    }
+}
+
 
 
 /* initialise the transport layer, and start the main loop, handling
@@ -68,7 +90,9 @@ void transport_init(mysocket_t sd, bool_t is_active)
      */
 
     ctx->next_seq_to_send = ctx->initial_sequence_num;//initialization
-    ctx->active = is_active;//save whether we are handling active or passive link here
+    ctx->window_size = 3072;
+    ctx->last_ack_received = ctx->initial_sequence_num;
+    ctx->last_byte_written = ctx->initial_sequence_num;
 
     if (is_active) {
         printf("active-shake\n");
@@ -175,7 +199,7 @@ static void generate_initial_seq_num(context_t *ctx)
     ctx->initial_sequence_num = 1;
 #else
     /* you have to fill this up */
-    ctx->initial_sequence_num = rand() % 256; //result from 0 to 255 inclusive
+    /*ctx->initial_sequence_num =;*/
 #endif
 }
 
@@ -195,170 +219,23 @@ static void control_loop(mysocket_t sd, context_t *ctx)
     {
         unsigned int event;
 
-        //printf("prior wait event\n");
         /* see stcp_api.h or stcp_api.c for details of this function */
         /* XXX: you will need to change some of these arguments! */
         event = stcp_wait_for_event(sd, ANY_EVENT, NULL);
-        //printf("post wait event\n");
 
         /* check whether it was the network, app, or a close request */
         if (event & APP_DATA)
         {
-            if(ctx->connection_state != CSTATE_ESTABLISHED){
-                continue;//if we are closing the connection, we won't be sending anything anymore
-            }
-            printf("sent\n");
             /* the application has requested that data be sent */
             /* see stcp_app_recv() */
-            char buffer[STCP_MSS];
-            ssize_t bytes_read;
-
-
-            if ((bytes_read = stcp_app_recv(sd, buffer, STCP_MSS)) > 0){//cut large chunk of data into smaller packets
-                printf("Bytes read from app: %zd\n", bytes_read);
-                
-                STCPHeader data_packet = {0};
-                data_packet.th_seq = ctx->next_seq_to_send;
-
-                //put the header and packet together
-                char send_buffer[sizeof(STCPHeader) + bytes_read];
-                memcpy(send_buffer, &data_packet, sizeof(STCPHeader));
-                memcpy(send_buffer + sizeof(STCPHeader), buffer, bytes_read);
-
-                if (stcp_network_send(sd, send_buffer, sizeof(send_buffer), NULL) == -1){
-                    perror("Failed to send data");
-                    return;
-                }
-
-                ctx->next_seq_to_send += bytes_read;
-                printf("Sending packet: SEQ=%u, Payload Size=%zd\n", data_packet.th_seq, bytes_read);
-            }
-
-            printf("sent-end\n");
         }
 
         if (event & NETWORK_DATA) {
-            printf("network receive 1\n");
             /* received data from STCP peer */
-            char buffer[1024];
-            ssize_t bytes_received = stcp_network_recv(sd, buffer, sizeof(buffer));
-            
-            //printf("network receive 2\n");
-            if (bytes_received > 0) {//similarly, if received from peer, send to app
-                STCPHeader *header = (STCPHeader *)buffer;
-                char *data = buffer + 20;
-                ssize_t data_bytes = bytes_received - 20;
-
-                printf("Flags set: ");
-                if (header->th_flags & TH_FIN) printf("FIN ");
-                if (header->th_flags & TH_SYN) printf("SYN ");
-                if (header->th_flags & TH_RST) printf("RST ");
-                if (header->th_flags & TH_PUSH) printf("PUSH ");
-                if (header->th_flags & TH_ACK) printf("ACK ");
-                if (header->th_flags & TH_URG) printf("URG ");
-                printf("\n");
-
-                //tell the other side about the next expected bit
-                tcp_seq next_expected_seq = (data_bytes > 0) ? (header->th_seq + data_bytes):(header->th_seq + 1);
-                //printf("network receive 3\n");
-                //receiver died here
-
-                if(header -> th_flags & TH_ACK){
-                    printf("ack received\n");
-                }
-                if (header->th_flags & TH_FIN){//if we are suppose to terminate(passive)
-                    printf("fin-received\n");
-                    if (data_bytes > 0){//send to app regardless
-                        stcp_app_send(sd, data, data_bytes);
-                    }
-                    STCPHeader ack_packet = {0};
-                    ack_packet.th_flags = TH_ACK;
-                    ack_packet.th_seq = ctx->next_seq_to_send;
-                    ack_packet.th_ack = next_expected_seq;
-                    ack_packet.th_off = 5;
-
-                    if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1){
-                        perror("Failed to send ACK for FIN");
-                        return;
-                    }//we send ack regardless
-
-                    if(ctx->connection_state == CSTATE_WAITING_FOR_FIN_ACTIVE){
-                        printf("got fin from other side\n");
-                        ctx->done = true;
-                        stcp_fin_received(sd);
-                        break;
-                        //in this case we should just send an ack and then terminate, we already sent ack in the past
-                    }
-
-                    //the only other possible case of getting a fin is being the passive side and receive a fin, in this case we send an ack along with our own fin, then wait for the other side
-                    //also send our own fin
-                    STCPHeader fin_packet = {0};                
-                    fin_packet.th_flags = TH_FIN;
-                    fin_packet.th_seq = ctx->next_seq_to_send;
-                    fin_packet.th_off = 5;
-
-                    if (stcp_network_send(sd, &fin_packet, sizeof(fin_packet), NULL) == -1){
-                        perror("Failed to send FIN");
-                        return;
-                    }
-                    ctx->next_seq_to_send++;
-                    ctx->connection_state = CSTATE_WAITING_FOR_FINACK_PASSIVE;//now we are just waiting for the ack from the other side
-                    printf("fin-received-end\n");
-                }
-                else{
-                    printf("received\n");
-                    if (data_bytes > 0){
-                        stcp_app_send(sd, data, data_bytes);
-                    }
-                    
-                    if ((header->th_flags & TH_ACK)){//basically we already send fin and is now waiting for the final ack, and now we get it, so we close
-                        printf("ack received\n");
-                        if(ctx->connection_state == CSTATE_WAITING_FOR_FINACK_PASSIVE){
-                            ctx->done = true;
-                            stcp_fin_received(sd);
-                            break;
-                        }else if(ctx->connection_state == CSTATE_WAITING_FOR_FINACK_ACTIVE){//for the active one, it sends fin, get ack, now it should be expecting a fin from the other side
-                            printf("got fin ack from other side\n");
-                            ctx->connection_state = CSTATE_WAITING_FOR_FIN_ACTIVE;
-                        }
-                    }
-
-                    //otherwise if the header is not ack, we give it an ack back
-                    STCPHeader ack_packet = {0};
-                    ack_packet.th_flags = TH_ACK;
-                    ack_packet.th_seq = ctx->next_seq_to_send;
-                    ack_packet.th_ack = next_expected_seq;
-                    ack_packet.th_off = 5;
-
-                    if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1){
-                        perror("Failed to send ACK");
-                        return;
-                    }
-                    printf("Receiving packet: SEQ=%u, ACK=%u\n", header->th_seq, header->th_ack);
-
-                    printf("received-end\n");
-                }
-
-                
-            }else{
-                printf("ELSE!!!\n");
-            }
         }
 
-        if (event & APP_CLOSE_REQUESTED) {//do the handshake for termination(only for active since only it will get notified by the application)
-            printf("fin-sent\n");
-            STCPHeader fin_packet = {0};
-            fin_packet.th_flags = TH_FIN;
-            fin_packet.th_seq = ctx->next_seq_to_send;
-            fin_packet.th_off = 5;
+        if (event & APP_CLOSE_REQUESTED) {
 
-            if (stcp_network_send(sd, &fin_packet, sizeof(fin_packet), NULL) == -1){
-                perror("Failed to send FIN");
-                return;
-            }
-            ctx->next_seq_to_send++;
-
-            ctx->connection_state = CSTATE_WAITING_FOR_FINACK_ACTIVE; //now we sent the fin, wait for the other side's response
         }
 
         /* etc. */
@@ -391,6 +268,3 @@ void our_dprintf(const char *format,...)
     fputs(buffer, stdout);
     fflush(stdout);
 }
-
-
-
