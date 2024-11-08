@@ -215,9 +215,9 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     perror("Failed to send data");
                     return;
                 }
+                printf("Sending packet: SEQ=%u, ACK=%u\n", ctx->next_seq_to_send, data_packet.th_ack);
                 ctx->next_seq_to_send += bytes_read;
             }
-            printf("Sending packet: SEQ=%u, ACK=%u\n", ctx->next_seq_to_send, ack_packet.th_ack);
             printf("sent-end\n");
         }
 
