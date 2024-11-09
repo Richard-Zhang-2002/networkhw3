@@ -230,7 +230,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
         /* see stcp_api.h or stcp_api.c for details of this function */
         /* XXX: you will need to change some of these arguments! */
         printf("prior event\n");
-        event = stcp_wait_for_event(sd, ANY_EVENT, 100);
+        event = stcp_wait_for_event(sd, ANY_EVENT, NULL);
         printf("another event\n");
 
         /* check whether it was the network, app, or a close request */
@@ -257,9 +257,9 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 data_packet.th_flags = 0;
 
                 //put header with packet
-                char send_buffer[sizeof(STCPHeader) + payload_size];
-                memcpy(send_buffer, &data_packet, sizeof(STCPHeader));
-                memcpy(send_buffer + sizeof(STCPHeader), buffer, payload_size);
+                char send_buffer[20 + payload_size];
+                memcpy(send_buffer, &data_packet, 20);
+                memcpy(send_buffer + 20, buffer, payload_size);
 
                 if (stcp_network_send(sd, send_buffer, sizeof(send_buffer), NULL) == -1){
                     perror("Failed to send data packet");
@@ -279,8 +279,8 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             ssize_t bytes_received = stcp_network_recv(sd, buffer, sizeof(buffer));
             if (bytes_received > 0){
                 STCPHeader *header = (STCPHeader *)buffer;
-                char *data = buffer + sizeof(STCPHeader);
-                ssize_t data_bytes = bytes_received - sizeof(STCPHeader);
+                char *data = buffer + 20;
+                ssize_t data_bytes = bytes_received - 20;
 
                 tcp_seq next_expected_seq = (data_bytes > 0) ? (header->th_seq + data_bytes):(header->th_seq + 1);
                 ctx->next_expected_seq = next_expected_seq;
