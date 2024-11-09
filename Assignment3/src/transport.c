@@ -314,10 +314,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                         tcp_seq seq_num = header->th_seq;
 
                         if (seq_num == ctx->next_expected_seq){//should be true since there is no packet loss in our example
-                            if (stcp_app_send(sd, data, payload_size) == -1) {
-                                perror("Failed to send data to application");
-                                return;
-                            }
+                            stcp_app_send(sd, data, payload_size)
                         }
                         ctx->next_expected_seq += payload_size;
                         send_ack(sd, ctx, ctx->next_expected_seq);
