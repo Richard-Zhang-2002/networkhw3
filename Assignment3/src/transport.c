@@ -307,21 +307,17 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 }
 
                 if (data_bytes > 0){//if there is any payload
-                    char recv_buffer[STCP_MSS];
-                    ssize_t received_size;
-                    if ((received_size = stcp_network_recv(sd, recv_buffer, STCP_MSS)) > 0){
-                        STCPHeader *header = (STCPHeader *)recv_buffer;
-                        char *data = recv_buffer + sizeof(STCPHeader);
-                        ssize_t payload_size = received_size - sizeof(STCPHeader);
-                        tcp_seq seq_num = header->th_seq;
+                    STCPHeader *header = (STCPHeader *)recv_buffer;
+                    char *data = recv_buffer + sizeof(STCPHeader);
+                    ssize_t payload_size = received_size - sizeof(STCPHeader);
+                    tcp_seq seq_num = header->th_seq;
 
-                        if (seq_num == ctx->next_expected_seq){//should be true since there is no packet loss in our example
-                            stcp_app_send(sd, data, payload_size);
-                        }
-                        ctx->next_expected_seq += payload_size;
-                        send_ack(sd, ctx, ctx->next_expected_seq);
-                        printf("Received and acknowledged sequence %u\n", seq_num);
+                    if (seq_num == ctx->next_expected_seq){//should be true since there is no packet loss in our example
+                        stcp_app_send(sd, data, payload_size);
                     }
+                    ctx->next_expected_seq += payload_size;
+                    send_ack(sd, ctx, ctx->next_expected_seq);
+                    printf("Received and acknowledged sequence %u\n", seq_num);
                 }
 
 
