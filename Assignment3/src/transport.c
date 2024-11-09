@@ -275,7 +275,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
         if (event & NETWORK_DATA) {
             printf("network data\n");
             /* received data from STCP peer */
-            char buffer[1024];
+            char buffer[2048];
             ssize_t bytes_received = stcp_network_recv(sd, buffer, sizeof(buffer));
             if (bytes_received > 0){
                 STCPHeader *header = (STCPHeader *)buffer;
