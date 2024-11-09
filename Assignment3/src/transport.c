@@ -21,16 +21,10 @@
 
 
 enum { 
-    CSTATE_ESTABLISHED,
-    CSTATE_WAITING_FOR_SYNACK,
-    CSTATE_WAITING_FOR_ACK,
-    CSTATE_FINWAIT_1,
-    CSTATE_FINWAIT_2,
-    CSTATE_WAITING_FOR_FINACK,
-    CSTATE_WAITING_TO_CLOSE,
-    CSTATE_TIME_WAIT,
-    CSTATE_CLOSING,
-    CSTATE_LISTEN
+    CSTATE_ESTABLISHED,//ordinary connection, both are running normally
+    CSTATE_FINWAIT_1,//this context already send fin(as active), the other side haven't. Is waiting for ack
+    CSTATE_FINWAIT_2,//this context already send fin(as active), the other side haven't. Got an ack, waiting for fin
+    CSTATE_FIN_RECEIVE,//this context received a fin and responded with an ack, now it simply waits for transmission to finish and send send fin
 };  /* obviously you should have more states */
 
 
@@ -241,18 +235,16 @@ static void control_loop(mysocket_t sd, context_t *ctx)
         if (event & APP_DATA)
         {
             printf("app data\n");
-            if (ctx->connection_state != CSTATE_ESTABLISHED){
+            if (ctx->connection_state != CSTATE_ESTABLISHED && ctx->connection_state != CSTATE_FIN_RECEIVE){
                 continue;//we should only be listening
             }
             char buffer[STCP_MSS];
             ssize_t payload_size;
             if ((payload_size = stcp_app_recv(sd, buffer, STCP_MSS)) > 0){
-                printf("after if\n");
                 tcp_seq window_start = ctx->last_ack_received;
                 tcp_seq window_end = window_start + ctx->max_window_size;
 
                 while(window_end < ctx->next_seq_to_send + payload_size){//wait until there is spot in the window
-                    printf("ctn\n");
                     continue;
                 }
                 //there is window, now send
@@ -280,6 +272,63 @@ static void control_loop(mysocket_t sd, context_t *ctx)
         if (event & NETWORK_DATA) {
             printf("network data\n");
             /* received data from STCP peer */
+            char buffer[1024];
+            ssize_t bytes_received = stcp_network_recv(sd, buffer, sizeof(buffer));
+            if (bytes_received > 0){
+                STCPHeader *header = (STCPHeader *)buffer;
+                char *data = buffer + sizeof(STCPHeader);
+                ssize_t data_bytes = bytes_received - sizeof(STCPHeader);
+
+                tcp_seq next_expected_seq = (data_bytes > 0) ? (header->th_seq + data_bytes):(header->th_seq + 1);
+                ctx->next_expected_seq = next_expected_seq
+                if (header->th_flags & TH_ACK){//when we receive an ack
+                    printf("ACK received\n");
+                    ctx->last_ack_received = header->th_ack;
+                    if(ctx->connection_state == CSTATE_FINWAIT_1){
+                        if(header->th_ack >= ctx->next_seq_to_send){//basically this is the ack for our fin
+                            ctx->connection_state = CSTATE_FINWAIT_2;//now we wait for their fin
+                        }
+                    }
+                }
+
+                if(header->th_flags & TH_FIN){//we receive a fin
+                    printf("FIN received\n");
+                    if (data_bytes <= 0){//prevent repetition of ack
+                        send_ack(sd, ctx, next_expected_seq);//we send ack regardless
+                    }
+                    if(ctx->connection_state == CSTATE_FINWAIT_2){//meaning that we are already ready to close
+                        ctx->done = true;
+                        stcp_fin_received(sd);
+                    }else if(ctx->connection_state == CSTATE_ESTABLISHED){
+                        ctx->connection_state = CSTATE_FIN_RECEIVE;//just remember that the neighbor already fin
+                    }
+                }
+
+                if (data_bytes > 0){//if there is any payload
+                    char recv_buffer[STCP_MSS];
+                    ssize_t received_size;
+                    if ((received_size = stcp_network_recv(sd, recv_buffer, STCP_MSS)) > 0){
+                        STCPHeader *header = (STCPHeader *)recv_buffer;
+                        char *data = recv_buffer + sizeof(STCPHeader);
+                        ssize_t payload_size = received_size - sizeof(STCPHeader);
+                        tcp_seq seq_num = header->th_seq;
+
+                        if (seq_num == ctx->next_expected_seq){//should be true since there is no packet loss in our example
+                            if (stcp_app_send(sd, data, payload_size) == -1) {
+                                perror("Failed to send data to application");
+                                return;
+                            }
+                        }
+                        ctx->next_expected_seq += payload_size;
+                        send_ack(sd, ctx, ctx->next_expected_seq);
+                        printf("Received and acknowledged sequence %u\n", seq_num);
+                    }
+                }
+
+
+            }
+
+
         }
 
         if (event & APP_CLOSE_REQUESTED) {
