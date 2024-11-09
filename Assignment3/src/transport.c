@@ -307,15 +307,15 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     }
                 }
 
-                if (data_bytes > 0){//if there is any payload
-                    tcp_seq seq_num = header->th_seq;
-                    if (seq_num == ctx->next_expected_seq){//should be true since there is no packet loss in our example
+               // if (data_bytes > 0){//if there is any payload
+              //      tcp_seq seq_num = header->th_seq;
+               //     if (seq_num == ctx->next_expected_seq){//should be true since there is no packet loss in our example
                         stcp_app_send(sd, data, data_bytes);
-                    }
-                    ctx->next_expected_seq += data_bytes;
-                    send_ack(sd, ctx, ctx->next_expected_seq);
-                    printf("Received and acknowledged sequence %u\n", seq_num);
-                }
+               //     }
+              //      ctx->next_expected_seq += data_bytes;
+              //      send_ack(sd, ctx, ctx->next_expected_seq);
+              //      printf("Received and acknowledged sequence %u\n", seq_num);
+             //   }
 
 
             }
