@@ -230,7 +230,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
         /* see stcp_api.h or stcp_api.c for details of this function */
         /* XXX: you will need to change some of these arguments! */
         printf("prior event\n");
-        event = stcp_wait_for_event(sd, ANY_EVENT, NULL);
+        event = stcp_wait_for_event(sd, ANY_EVENT, 100);
         printf("another event\n");
 
         /* check whether it was the network, app, or a close request */
@@ -275,7 +275,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
         if (event & NETWORK_DATA) {
             printf("network data\n");
             /* received data from STCP peer */
-            char buffer[2048];
+            char buffer[1024];
             ssize_t bytes_received = stcp_network_recv(sd, buffer, sizeof(buffer));
             if (bytes_received > 0){
                 STCPHeader *header = (STCPHeader *)buffer;
