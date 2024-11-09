@@ -280,7 +280,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 ssize_t data_bytes = bytes_received - sizeof(STCPHeader);
 
                 tcp_seq next_expected_seq = (data_bytes > 0) ? (header->th_seq + data_bytes):(header->th_seq + 1);
-                ctx->next_expected_seq = next_expected_seq
+                ctx->next_expected_seq = next_expected_seq;
                 if (header->th_flags & TH_ACK){//when we receive an ack
                     printf("ACK received\n");
                     ctx->last_ack_received = header->th_ack;
