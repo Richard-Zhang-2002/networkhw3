@@ -314,9 +314,8 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                         if(ctx->connection_state == CSTATE_FINWAIT_1){
                             ctx->connection_state = CSTATE_FINWAIT_2;
                         }
-                    }
-
-                    //otherwise if the header is not ack, we give it an ack back
+                    }else{
+                        //otherwise if the header is not ack, we give it an ack back
                     STCPHeader ack_packet = {0};
                     ack_packet.th_flags = TH_ACK;
                     ack_packet.th_seq = ctx->next_seq_to_send;
@@ -330,6 +329,9 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     printf("Receiving packet: SEQ=%u, ACK=%u\n", header->th_seq, header->th_ack);
 
                     printf("received-end\n");
+                    }
+
+                    
                 }
 
                 
