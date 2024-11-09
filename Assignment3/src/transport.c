@@ -245,10 +245,10 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 tcp_seq window_start = ctx->last_ack_received;
                 tcp_seq window_end = window_start + ctx->max_window_size;
 
-                while(window_end < ctx->next_seq_to_send + payload_size){//wait until there is spot in the window
-                    printf("top loop\n");
-                    continue;
-                }
+                //while(window_end < ctx->next_seq_to_send + payload_size){//wait until there is spot in the window
+                //    printf("top loop\n");
+                //    continue;
+                //}
                 //there is window, now send
                 STCPHeader data_packet = {0};
                 data_packet.th_seq = ctx->next_seq_to_send;
