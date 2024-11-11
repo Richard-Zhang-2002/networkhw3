@@ -275,7 +275,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     ack_packet.th_seq = ctx->next_seq_to_send;
                     ack_packet.th_ack = next_expected_seq;
                     ack_packet.th_off = 5;
-                    printf("sent ack for fin\n")
+                    printf("sent ack for fin\n");
 
                     if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1){
                         perror("Failed to send ACK for FIN");
@@ -284,7 +284,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
 
                     if(ctx->connection_state == CSTATE_WAITING_FOR_FIN_ACTIVE){
                         //printf("got fin from other side\n");
-                        print("fin received under waiting for fin_active, terminating\n");
+                        printf("fin received under waiting for fin_active, terminating\n");
                         ctx->done = true;
                         stcp_fin_received(sd);
                         break;
@@ -294,7 +294,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     //the only other possible case of getting a fin is being the passive side and receive a fin, in this case we send an ack along with our own fin, then wait for the other side
                     //also send our own fin
                     if (ctx->connection_state == CSTATE_ESTABLISHED){
-                        print("fin received under case established, sending fin and change state to wait_for_finack_passive\n");
+                        printf("fin received under case established, sending fin and change state to wait_for_finack_passive\n");
                         STCPHeader fin_packet = {0};                
                         fin_packet.th_flags = TH_FIN;
                         fin_packet.th_seq = ctx->next_seq_to_send;
