@@ -319,7 +319,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     if ((header->th_flags & TH_ACK)){//basically we already send fin and is now waiting for the final ack, and now we get it, so we close
                         printf("ack received\n");
                         if(header->th_ack == ctx->next_seq_to_send){
-                            printf("ack for fin\n");
+                            printf("ack relates to the newest sent item(if fin, this should be the ack for fin)\n");
                             if(ctx->connection_state == CSTATE_WAITING_FOR_FINACK_PASSIVE){
                                 printf("terminating as ack received under waiting for finack passive state\n");
                             ctx->done = true;
