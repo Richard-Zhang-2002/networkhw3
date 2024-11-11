@@ -281,7 +281,26 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     }
                 }
 
-                if (header->th_flags & TH_FIN){//if we are suppose to terminate(passive)
+                    //printf("received\n");
+                    if ((header->th_flags & TH_ACK)){//basically we already send fin and is now waiting for the final ack, and now we get it, so we close
+                        printf("ack received\n");
+                        if(header->th_ack == ctx->next_seq_to_send){
+                            printf("ack relates to the newest sent item(if fin, this should be the ack for fin)\n");
+                            if(ctx->connection_state == CSTATE_WAITING_FOR_FINACK_PASSIVE){
+                                printf("terminating as ack received under waiting for finack passive state\n");
+                            ctx->done = true;
+                            stcp_fin_received(sd);
+                            break;
+                        }else if(ctx->connection_state == CSTATE_WAITING_FOR_FINACK_ACTIVE){//for the active one, it sends fin, get ack, now it should be expecting a fin from the other side
+                            
+                            printf("fin ack received under state waiting_for_fin_ack_active, switch to state wait for fin\n");
+                            ctx->connection_state = CSTATE_WAITING_FOR_FIN_ACTIVE;
+                        }
+                        }
+                        
+                    }
+
+                    if (header->th_flags & TH_FIN){//if we are suppose to terminate(passive)
                    // printf("fin-received\n");
                    printf("received fin\n");
                     STCPHeader ack_packet = {0};
@@ -324,24 +343,6 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     
                    // printf("fin-received-end\n");
                 }
-                    //printf("received\n");
-                    if ((header->th_flags & TH_ACK)){//basically we already send fin and is now waiting for the final ack, and now we get it, so we close
-                        printf("ack received\n");
-                        if(header->th_ack == ctx->next_seq_to_send){
-                            printf("ack relates to the newest sent item(if fin, this should be the ack for fin)\n");
-                            if(ctx->connection_state == CSTATE_WAITING_FOR_FINACK_PASSIVE){
-                                printf("terminating as ack received under waiting for finack passive state\n");
-                            ctx->done = true;
-                            stcp_fin_received(sd);
-                            break;
-                        }else if(ctx->connection_state == CSTATE_WAITING_FOR_FINACK_ACTIVE){//for the active one, it sends fin, get ack, now it should be expecting a fin from the other side
-                            
-                            printf("fin ack received under state waiting_for_fin_ack_active, switch to state wait for fin\n");
-                            ctx->connection_state = CSTATE_WAITING_FOR_FIN_ACTIVE;
-                        }
-                        }
-                        
-                    }
 
 
                     //printf("Receiving packet: SEQ=%u, ACK=%u\n", header->th_seq, header->th_ack);
