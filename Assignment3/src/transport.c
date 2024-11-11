@@ -432,14 +432,6 @@ void new_data_from_application_handler(mysocket_t sd, context_t *ctx)
         STCPHeader data_packet = {0};
         data_packet.th_seq = ctx->next_seq_to_send;
 
-        // test send fin by receive 'quit' message
-        if(bytes_read == 6 &&
-            buffer[0]=='q'&&buffer[1]=='u'&&buffer[2]=='i'&&buffer[3]=='t')
-        {
-            socket_be_closed_handler(sd, ctx);
-            return;
-        }
-
         //put the header and packet together
         char send_buffer[sizeof(STCPHeader) + bytes_read];
         memcpy(send_buffer, &data_packet, sizeof(STCPHeader));
