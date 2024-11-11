@@ -102,7 +102,7 @@ unsigned int sent_syn_ack_handshake(mysocket_t sd, context_t* ctx, STCPHeader* s
     return 1;
 }
 
-//wait for syn-ack
+/* wait syn-ack when startup tcp connection*/
 unsigned int waitfor_syn_ack_handshake(mysocket_t sd, context_t* ctx, STCPHeader* syn_ack_packet)
 {
     printf("Handshake: waiting for syn_ack packet...\n");
@@ -124,7 +124,7 @@ unsigned int waitfor_syn_ack_handshake(mysocket_t sd, context_t* ctx, STCPHeader
     return 1;
 }
 
-//send ack for handshake
+/* send ack packet when startup tcp connection*/
 unsigned int send_ack_handshake(mysocket_t sd, context_t* ctx, STCPHeader* syn_ack_packet)
 {
     printf("Handshake: sendinging ack...\n");
@@ -149,7 +149,7 @@ unsigned int send_ack_handshake(mysocket_t sd, context_t* ctx, STCPHeader* syn_a
 
 }
 
-//wait for normal ack
+/* wait ack when startup tcp connection*/
 unsigned int waitfor_ack_handshake(mysocket_t sd, context_t* ctx, STCPHeader* ack_packet)
 {
     printf("Handshake: waiting for ack packet...\n");
@@ -321,7 +321,7 @@ void incoming_data_from_peer_handler(mysocket_t sd, context_t *ctx)
             printf("seq=%u, ack=%u\n",fin_packet.th_seq,fin_packet.th_ack) ;
 
             printf("step4: receive fin ack, ");
-            while(1) {//do not receive any message, just wait for that particular ack
+            while(1) {
                 STCPHeader ack_packet = {0};
                 ssize_t bytes_received = stcp_network_recv(sd, &ack_packet, sizeof(STCPHeader));
                 if (bytes_received == -1){
@@ -432,6 +432,14 @@ void new_data_from_application_handler(mysocket_t sd, context_t *ctx)
         STCPHeader data_packet = {0};
         data_packet.th_seq = ctx->next_seq_to_send;
 
+        // test send fin by receive 'quit' message
+        if(bytes_read == 6 &&
+            buffer[0]=='q'&&buffer[1]=='u'&&buffer[2]=='i'&&buffer[3]=='t')
+        {
+            socket_be_closed_handler(sd, ctx);
+            return;
+        }
+
         //put the header and packet together
         char send_buffer[sizeof(STCPHeader) + bytes_read];
         memcpy(send_buffer, &data_packet, sizeof(STCPHeader));
@@ -446,7 +454,23 @@ void new_data_from_application_handler(mysocket_t sd, context_t *ctx)
 
             printf("Sending packet: seq=%u, payload_size=%zd\n", data_packet.th_seq, bytes_read);
             tcp_seq next_seq = ctx->next_seq_to_send + bytes_read;
-            ctx->next_seq_to_send = next_seq;
+
+            //receive correct ack
+            STCPHeader ack_packet;
+            ssize_t bytes_received = stcp_network_recv(sd, &ack_packet, sizeof(ack_packet));
+            if (bytes_received == -1) {
+                perror("Failed to receive ACK");
+                continue;
+            }
+
+            //if receive ack
+            if ( ((ack_packet.th_flags & TH_ACK) == TH_ACK)  &&
+                (ack_packet.th_ack == next_seq) )
+            {
+                printf("Received ack success. ack=%u\n",ack_packet.th_ack);
+                ctx->next_seq_to_send = next_seq; // update after send success
+                break;
+            }
 
         }
 
