@@ -311,7 +311,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                         stcp_app_send(sd, data, data_bytes);
                     }
                     
-                    if ((header->th_flags & TH_ACK)){//basically we already send fin and is now waiting for the final ack, and now we get it, so we close
+                    if ((header->th_flags & TH_ACK && header->th_ack == ctx->next_seq_to_send)){//basically we already send fin and is now waiting for the final ack, and now we get it, so we close
                         printf("ack received\n");
                         if(ctx->connection_state == CSTATE_WAITING_FOR_FINACK_PASSIVE){
                             ctx->done = true;
