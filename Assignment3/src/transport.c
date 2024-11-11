@@ -83,7 +83,6 @@ void transport_init(mysocket_t sd, bool_t is_active)
             return;
         }
         ctx->next_seq_to_send++;
-        printf("JUST EDITED NEXT SEQ TO BE %u\n", ctx->next_seq_to_send);
 
         // wait for syn ack
         STCPHeader syn_ack_packet;
@@ -140,7 +139,6 @@ void transport_init(mysocket_t sd, bool_t is_active)
             return;
         }
         ctx->next_seq_to_send++;
-        printf("JUST EDITED NEXT SEQ TO BE %u\n", ctx->next_seq_to_send);
 
         // wait for ack
         STCPHeader ack_packet;
@@ -234,8 +232,6 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 printf("sent data\n");
 
                 ctx->next_seq_to_send += bytes_read;
-                printf("JUST EDITED NEXT SEQ TO BE %u\n", ctx->next_seq_to_send);
-                printf("+= BYTES_READ %u\n", bytes_read);
                // printf("Sending packet: SEQ=%u, Payload Size=%zd\n", data_packet.th_seq, bytes_read);
             }
 
@@ -323,7 +319,6 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                             return;
                         }
                         ctx->next_seq_to_send++;
-                        printf("JUST EDITED NEXT SEQ TO BE %u\n", ctx->next_seq_to_send);
                         ctx->connection_state = CSTATE_WAITING_FOR_FINACK_PASSIVE;//now we are just waiting for the ack from the other side
                     }
                     
@@ -371,8 +366,8 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 perror("Failed to send FIN");
                 return;
             }
+            
             ctx->next_seq_to_send++;
-            printf("JUST EDITED NEXT SEQ TO BE %u\n", ctx->next_seq_to_send);
 
             ctx->connection_state = CSTATE_WAITING_FOR_FINACK_ACTIVE; //now we sent the fin, wait for the other side's response
         }
