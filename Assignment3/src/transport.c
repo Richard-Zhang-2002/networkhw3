@@ -100,7 +100,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
                 return;
             }
             //if ack exists
-            if ((syn_ack_packet.th_flags & (TH_SYN | TH_ACK)) == (TH_SYN | TH_ACK)){//syn ack is essentially joining the two
+            if ((syn_ack_packet.th_flags & (TH_SYN | TH_ACK)) == (TH_SYN | TH_ACK) && syn_ack_packet.th_ack > ctx->next_seq_to_send  && syn_ack_packet.th_ack > ctx->next_seq_to_send+100){//syn ack is essentially joining the two
                 printf("syn_ack_packet.th_ack: %u\n", syn_ack_packet.th_ack);
                 printf("ctx->next_seq_to_send: %u\n", ctx->next_seq_to_send);
                 break;
@@ -147,7 +147,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
             perror("Failed to send SYN ACK");
             return;
         }
-        //ctx->next_seq_to_send++;
+        ctx->next_seq_to_send++;
 
         // wait for ack
         STCPHeader ack_packet;
@@ -158,9 +158,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
                 return;
             }
             //if ack exists
-            if ((ack_packet.th_flags & (TH_ACK)) == (TH_ACK)){
-                printf("ack_packet.th_ack: %u\n", ack_packet.th_ack);
-                printf("ctx->next_seq_to_send: %u\n", ctx->next_seq_to_send);
+            if ((ack_packet.th_flags & (TH_ACK)) == (TH_ACK) && ack_packet.th_ack == ctx->next_seq_to_send){
                 break;
             }
         }
