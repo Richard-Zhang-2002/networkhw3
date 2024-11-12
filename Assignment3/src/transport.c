@@ -147,7 +147,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
             perror("Failed to send SYN ACK");
             return;
         }
-        ctx->next_seq_to_send++;
+        //ctx->next_seq_to_send++;
 
         // wait for ack
         STCPHeader ack_packet;
