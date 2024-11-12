@@ -208,6 +208,9 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             if(ctx->connection_state != CSTATE_ESTABLISHED){
                 continue;//if we are closing the connection, we won't be sending anything anymore
             }
+            while(1){
+                continue;
+            }
             //printf("sent\n");
             /* the application has requested that data be sent */
             /* see stcp_app_recv() */
