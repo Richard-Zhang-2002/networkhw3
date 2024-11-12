@@ -18,6 +18,10 @@
 #include "mysock.h"
 #include "stcp_api.h"
 #include "transport.h"
+#include <time.h>
+
+
+#define FIN_TIMEOUT 2 
 
 
 enum
@@ -39,6 +43,7 @@ typedef struct
     tcp_seq next_seq_to_send;
     tcp_seq last_ack_received;
     bool_t active;
+    time_t fin_sent_time;
     /* any other connection-wide global variables go here */
 } context_t;
 
@@ -319,6 +324,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     //the only other possible case of getting a fin is being the passive side and receive a fin, in this case we send an ack along with our own fin, then wait for the other side
                     //also send our own fin
                     if (ctx->connection_state == CSTATE_ESTABLISHED){
+                        ctx->fin_sent_time = time(NULL);
                         printf("fin received under case established, sending fin and change state to wait_for_finack_passive\n");
                         STCPHeader fin_packet = {0};                
                         fin_packet.th_flags = TH_FIN;
@@ -363,6 +369,15 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             ctx->next_seq_to_send++;
 
             ctx->connection_state = CSTATE_WAITING_FOR_FINACK_ACTIVE; //now we sent the fin, wait for the other side's response
+            ctx->fin_sent_time = time(NULL);
+        }
+
+
+        if ((ctx->connection_state == CSTATE_WAITING_FOR_FINACK_PASSIVE || ctx->connection_state == CSTATE_WAITING_FOR_FINACK_ACTIVE) &&
+            time(NULL) - ctx->fin_sent_time >= FIN_TIMEOUT) {
+            printf("FIN-ACK timeout reached. Closing connection.\n");
+            ctx->done = true;
+            stcp_fin_received(sd);
         }
 
         /* etc. */
