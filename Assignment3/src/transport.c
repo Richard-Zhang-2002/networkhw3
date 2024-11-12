@@ -82,6 +82,7 @@ typedef struct
     tcp_seq last_ack_received;
     bool_t active;
     time_t fin_sent_time;
+    queue_t data_queue;
     /* any other connection-wide global variables go here */
 } context_t;
 
