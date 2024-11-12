@@ -92,6 +92,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
 
         // wait for syn ack
         STCPHeader syn_ack_packet;
+        while (1){
             ssize_t bytes_received = stcp_network_recv(sd, &syn_ack_packet, sizeof(syn_ack_packet));
             if (bytes_received == -1){
                 perror("Failed to receive SYN ACK");
@@ -99,12 +100,12 @@ void transport_init(mysocket_t sd, bool_t is_active)
                 return;
             }
             //if ack exists
-            if ((syn_ack_packet.th_flags & (TH_SYN | TH_ACK)) == (TH_SYN | TH_ACK) && syn_ack_packet.th_ack == ctx->next_seq_to_send){//syn ack is essentially joining the two
+            if ((syn_ack_packet.th_flags & (TH_SYN | TH_ACK)) == (TH_SYN | TH_ACK) && syn_ack_packet.th_ack > ctx->next_seq_to_send  && syn_ack_packet.th_ack > ctx->next_seq_to_send+12500000){//syn ack is essentially joining the two
                 printf("syn_ack_packet.th_ack: %u\n", syn_ack_packet.th_ack);
                 printf("ctx->next_seq_to_send: %u\n", ctx->next_seq_to_send);
                 break;
             }
-        
+        }
 
         // send ack
         STCPHeader ack_packet = {0};
@@ -124,6 +125,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
         printf("passive-shake\n");
         // wait for syn
         STCPHeader syn_packet;
+        while (1){
             ssize_t bytes_received = stcp_network_recv(sd, &syn_packet, sizeof(syn_packet));
             if (bytes_received == -1){
                 perror("Failed to receive SYN");
@@ -134,12 +136,12 @@ void transport_init(mysocket_t sd, bool_t is_active)
             if ((syn_packet.th_flags & (TH_SYN)) == (TH_SYN)){
                 break;
             }
-        
+        }
 
         // send syn ack
         STCPHeader syn_ack_packet = {0};
         syn_ack_packet.th_flags = TH_SYN | TH_ACK;
-        syn_ack_packet.th_seq = ctx->next_seq_to_send;
+        syn_ack_packet.th_seq = ctx->initial_sequence_num;
         syn_ack_packet.th_ack = syn_packet.th_seq + 1;
         if (stcp_network_send(sd, &syn_ack_packet, sizeof(syn_ack_packet), NULL) == -1){//syn ack send failed
             perror("Failed to send SYN ACK");
@@ -149,6 +151,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
 
         // wait for ack
         STCPHeader ack_packet;
+        while (1){
             ssize_t bytes_received = stcp_network_recv(sd, &ack_packet, sizeof(ack_packet));
             if (bytes_received == -1){
                 perror("Failed to receive ACK");
@@ -158,6 +161,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
             if ((ack_packet.th_flags & (TH_ACK)) == (TH_ACK) && ack_packet.th_ack == ctx->next_seq_to_send){
                 break;
             }
+        }
         printf("passive-shake-end\n");
     }
     ctx->connection_state = CSTATE_ESTABLISHED;
