@@ -258,7 +258,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             //printf("sent\n");
             /* the application has requested that data be sent */
             /* see stcp_app_recv() */
-            char *buffer = malloc(STCP_MSS);
+            char *buffer = (char *)malloc(STCP_MSS);
             ssize_t bytes_read;
 
 
