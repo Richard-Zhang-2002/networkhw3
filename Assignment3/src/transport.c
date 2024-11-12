@@ -95,7 +95,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
                 return;
             }
             //if ack exists
-            if ((syn_ack_packet.th_flags & (TH_SYN | TH_ACK)) == (TH_SYN | TH_ACK) && syn_ack_packet->th_ack == ctx->next_seq_to_send){//syn ack is essentially joining the two
+            if ((syn_ack_packet.th_flags & (TH_SYN | TH_ACK)) == (TH_SYN | TH_ACK) && syn_ack_packet.th_ack == ctx->next_seq_to_send){//syn ack is essentially joining the two
                 break;
             }
         }
@@ -150,7 +150,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
                 return;
             }
             //if ack exists
-            if ((ack_packet.th_flags & (TH_ACK)) == (TH_ACK) && ack_packet->th_ack == ctx->next_seq_to_send){
+            if ((ack_packet.th_flags & (TH_ACK)) == (TH_ACK) && ack_packet.th_ack == ctx->next_seq_to_send){
                 break;
             }
         }
