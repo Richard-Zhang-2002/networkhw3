@@ -45,7 +45,7 @@ typedef struct {
 } queue_t;
 
 void enqueue(queue_t *queue, char *data, ssize_t size) {
-    queue_node_t *new_node = malloc(sizeof(queue_node_t));
+    queue_node_t *new_node = (queue_node_t *)malloc(sizeof(queue_node_t));
     new_node->data = data;
     new_node->size = size;
     new_node->next = NULL;
