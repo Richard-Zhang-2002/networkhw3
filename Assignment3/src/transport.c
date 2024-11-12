@@ -82,7 +82,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
         // send syn packet
         STCPHeader syn_packet = {0};
         syn_packet.th_flags = TH_SYN;
-        syn_packet.th_seq = ctx->initial_sequence_num;
+        syn_packet.th_seq = ctx->next_seq_to_send;
         if (stcp_network_send(sd, &syn_packet, sizeof(syn_packet), NULL) == -1){//syn send failed
             perror("Failed to send SYN");
             errno = ECONNREFUSED;
@@ -110,7 +110,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
         // send ack
         STCPHeader ack_packet = {0};
         ack_packet.th_flags = TH_ACK;//just use normal ack this time
-        ack_packet.th_seq = syn_packet.th_seq + 1;//the sequence number(+1 since ack and syn here takes 1 even if no payload exists)
+        ack_packet.th_seq = ctx->next_seq_to_send;//the sequence number(+1 since ack and syn here takes 1 even if no payload exists)
         ack_packet.th_ack = syn_ack_packet.th_seq + 1;//next expected number
         //if send failed
         if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1){
@@ -118,6 +118,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
             errno = ECONNREFUSED;
             return;
         }
+        ctx->next_seq_to_send++;
         printf("active-shake-end\n");
 
     } else {
@@ -158,6 +159,8 @@ void transport_init(mysocket_t sd, bool_t is_active)
             }
             //if ack exists
             if ((ack_packet.th_flags & (TH_ACK)) == (TH_ACK)){
+                printf("ack_packet.th_ack: %u\n", ack_packet.th_ack);
+                printf("ctx->next_seq_to_send: %u\n", ctx->next_seq_to_send);
                 break;
             }
         }
@@ -282,6 +285,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     ack_packet.th_seq = ctx->next_seq_to_send;
                     ack_packet.th_ack = next_expected_seq;
                     ack_packet.th_off = 5;
+                    ctx->next_seq_to_send++;
 
                     if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1){
                         perror("Failed to send ACK");
