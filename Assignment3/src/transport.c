@@ -37,6 +37,7 @@ typedef struct
     int connection_state;   /* state of the connection (established, etc.) */
     tcp_seq initial_sequence_num;
     tcp_seq next_seq_to_send;
+    tcp_seq last_ack_received;
     bool_t active;
     /* any other connection-wide global variables go here */
 } context_t;
@@ -264,8 +265,8 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 //printf("network receive 3\n");
                 //receiver died here
 
-                if (data_bytes > 0 || (header->th_flags & TH_FIN && data_bytes == 0)){//send to app regardless
-                    stcp_app_send(sd, data, data_bytes);
+                if (data_bytes > 0 || (header->th_flags & TH_FIN)){//send to app regardless
+                    if(data_bytes > 0){stcp_app_send(sd, data, data_bytes);}
                     printf("receiving a normal payload or FIN\n");
                         printf("sending ack\n");
                                             //otherwise if the header is not ack, we give it an ack back
@@ -303,17 +304,6 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     if (header->th_flags & TH_FIN){//if we are suppose to terminate(passive)
                    // printf("fin-received\n");
                    printf("received fin\n");
-                    STCPHeader ack_packet = {0};
-                    ack_packet.th_flags = TH_ACK;
-                    ack_packet.th_seq = ctx->next_seq_to_send;
-                    ack_packet.th_ack = next_expected_seq;
-                    ack_packet.th_off = 5;
-                    printf("sent ack for fin\n");
-
-                    if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1){
-                        perror("Failed to send ACK for FIN");
-                        return;
-                    }//we send ack regardless
 
                     if(ctx->connection_state == CSTATE_WAITING_FOR_FIN_ACTIVE){
                         //printf("got fin from other side\n");
