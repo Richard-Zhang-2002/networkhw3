@@ -95,7 +95,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
                 return;
             }
             //if ack exists
-            if ((syn_ack_packet.th_flags & (TH_SYN | TH_ACK)) == (TH_SYN | TH_ACK)){//syn ack is essentially joining the two
+            if ((syn_ack_packet.th_flags & (TH_SYN | TH_ACK)) == (TH_SYN | TH_ACK) && syn_ack_packet->th_ack == ctx->next_seq_to_send){//syn ack is essentially joining the two
                 break;
             }
         }
@@ -150,7 +150,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
                 return;
             }
             //if ack exists
-            if ((ack_packet.th_flags & (TH_ACK)) == (TH_ACK)){
+            if ((ack_packet.th_flags & (TH_ACK)) == (TH_ACK) && ack_packet->th_ack == ctx->next_seq_to_send){
                 break;
             }
         }
@@ -207,9 +207,6 @@ static void control_loop(mysocket_t sd, context_t *ctx)
         {
             if(ctx->connection_state != CSTATE_ESTABLISHED){
                 continue;//if we are closing the connection, we won't be sending anything anymore
-            }
-            while(1){
-                continue;
             }
             //printf("sent\n");
             /* the application has requested that data be sent */
