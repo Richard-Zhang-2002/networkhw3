@@ -92,7 +92,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
 
         // wait for syn ack
         STCPHeader syn_ack_packet;
-
+        while (1){
             ssize_t bytes_received = stcp_network_recv(sd, &syn_ack_packet, sizeof(syn_ack_packet));
             if (bytes_received == -1){
                 perror("Failed to receive SYN ACK");
@@ -100,12 +100,12 @@ void transport_init(mysocket_t sd, bool_t is_active)
                 return;
             }
             //if ack exists
-            if (!((syn_ack_packet.th_flags & (TH_SYN | TH_ACK)) == (TH_SYN | TH_ACK) && syn_ack_packet.th_ack == ctx->next_seq_to_send)){//syn ack is essentially joining the two
+            if ((syn_ack_packet.th_flags & (TH_SYN | TH_ACK)) == (TH_SYN | TH_ACK) && syn_ack_packet.th_ack > ctx->next_seq_to_send  && syn_ack_packet.th_ack > ctx->next_seq_to_send+12500000){//syn ack is essentially joining the two
                 printf("syn_ack_packet.th_ack: %u\n", syn_ack_packet.th_ack);
                 printf("ctx->next_seq_to_send: %u\n", ctx->next_seq_to_send);
-                return;
+                break;
             }
-
+        }
 
         // send ack
         STCPHeader ack_packet = {0};
