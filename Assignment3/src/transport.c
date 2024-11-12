@@ -33,6 +33,44 @@ enum
 };   /* obviously you should have more states */
 
 
+typedef struct queue_node {
+    char *data;
+    ssize_t size;
+    struct queue_node *next;
+} queue_node_t;
+
+typedef struct {
+    queue_node_t *head;
+    queue_node_t *tail;
+} queue_t;
+
+void enqueue(queue_t *queue, char *data, ssize_t size) {
+    queue_node_t *new_node = malloc(sizeof(queue_node_t));
+    new_node->data = data;
+    new_node->size = size;
+    new_node->next = NULL;
+
+    if (queue->tail) {
+        queue->tail->next = new_node;
+    } else {
+        queue->head = new_node;
+    }
+    queue->tail = new_node;
+}
+
+void dequeue(queue_t *queue) {
+    if (!queue->head) return;
+
+    queue_node_t *temp = queue->head;
+    queue->head = queue->head->next;
+
+    if (!queue->head) queue->tail = NULL;
+
+    free(temp->data);
+    free(temp);
+}
+
+
 /* this structure is global to a mysocket descriptor */
 typedef struct
 {
@@ -219,28 +257,13 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             //printf("sent\n");
             /* the application has requested that data be sent */
             /* see stcp_app_recv() */
-            char buffer[STCP_MSS];
+            char *buffer = malloc(STCP_MSS);
             ssize_t bytes_read;
 
 
             if ((bytes_read = stcp_app_recv(sd, buffer, STCP_MSS)) > 0){//cut large chunk of data into smaller packets
                // printf("Bytes read from app: %zd\n", bytes_read);
-                
-                STCPHeader data_packet = {0};
-                data_packet.th_seq = ctx->next_seq_to_send;
-
-                //put the header and packet together
-                char send_buffer[sizeof(STCPHeader) + bytes_read];
-                memcpy(send_buffer, &data_packet, sizeof(STCPHeader));
-                memcpy(send_buffer + sizeof(STCPHeader), buffer, bytes_read);
-
-                if (stcp_network_send(sd, send_buffer, sizeof(send_buffer), NULL) == -1){
-                    perror("Failed to send data");
-                    return;
-                }
-                printf("sent data\n");
-
-                ctx->next_seq_to_send += bytes_read;
+                enqueue(&ctx->data_queue, buffer, bytes_read);
                // printf("Sending packet: SEQ=%u, Payload Size=%zd\n", data_packet.th_seq, bytes_read);
             }
 
@@ -294,6 +317,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     //printf("received\n");
                     if ((header->th_flags & TH_ACK)){//basically we already send fin and is now waiting for the final ack, and now we get it, so we close
                         printf("ack received\n");
+                        ctx->last_ack_received = header->th_ack;
                         if(header->th_ack == ctx->next_seq_to_send){
                             printf("ack relates to the newest sent item(if fin, this should be the ack for fin)\n");
                             if(ctx->connection_state == CSTATE_WAITING_FOR_FINACK_PASSIVE){
@@ -381,6 +405,28 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             ctx->done = true;
             stcp_fin_received(sd);
         }
+
+        while (ctx->data_queue.head && (ctx->last_ack_received + 3072 > ctx->next_seq_to_send + ctx->data_queue.head->size)) {
+            queue_node_t *current = ctx->data_queue.head;
+            STCPHeader data_packet = {0};
+            data_packet.th_seq = ctx->next_seq_to_send;
+
+            //put the header and packet together
+            char send_buffer[sizeof(STCPHeader) + current->size];
+            memcpy(send_buffer, &data_packet, sizeof(STCPHeader));
+            memcpy(send_buffer + sizeof(STCPHeader), current->data, current->size);
+
+            if (stcp_network_send(sd, send_buffer, sizeof(STCPHeader) + current->size, NULL) == -1) {
+                perror("Failed to send data");
+                free(send_buffer);
+                return;
+            }
+            printf("sent data\n");
+
+            ctx->next_seq_to_send += current->size;
+            dequeue(&ctx->data_queue);  // Remove the sent data from the queue
+        }
+
 
         /* etc. */
     }
