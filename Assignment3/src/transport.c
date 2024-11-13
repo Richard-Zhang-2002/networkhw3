@@ -151,7 +151,6 @@ void transport_init(mysocket_t sd, bool_t is_active)
         }
 
         // send ack
-        sleep(2);//for testing sake, wait a bit
         STCPHeader ack_packet = {0};
         ack_packet.th_flags = TH_ACK;//just use normal ack this time
         ack_packet.th_seq = htonl(ctx->next_seq_to_send);//the sequence number(+1 since ack and syn here takes 1 even if no payload exists)
@@ -314,8 +313,10 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                         printf("Receiving a normal payload of size %zd bytes\n", data_bytes);
                     }
                     
+                    sleep(2);//for testing sake, wait a bit
                         printf("sending ack\n");
                                             //otherwise if the header is not ack, we give it an ack back
+                                            
                     STCPHeader ack_packet = {0};
                     ack_packet.th_flags = TH_ACK;
                     ack_packet.th_seq = htonl(ctx->next_seq_to_send);
