@@ -30,7 +30,6 @@ enum
     CSTATE_WAITING_FOR_FINACK_PASSIVE,
     CSTATE_WAITING_FOR_FINACK_ACTIVE,
     CSTATE_WAITING_FOR_FIN_ACTIVE,
-    CSTATE_DUMPING,//received fin, now dumping everything inside our queue, will terminate after that
 };   /* obviously you should have more states */
 
 
@@ -366,8 +365,20 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     //the only other possible case of getting a fin is being the passive side and receive a fin, in this case we send an ack along with our own fin, then wait for the other side
                     //also send our own fin
                     if (ctx->connection_state == CSTATE_ESTABLISHED){
-                        printf("receiving fin as established state, now switching to dumping state\n");
-                        ctx->connection_state = CSTATE_DUMPING;//now we are just waiting for the ack from the other side
+                        ctx->fin_sent_time = time(NULL);
+                        printf("fin received under case established, sending fin and change state to wait_for_finack_passive\n");
+                        STCPHeader fin_packet = {0};                
+                        fin_packet.th_flags = TH_FIN;
+                        fin_packet.th_seq = htonl(ctx->next_seq_to_send);
+                        fin_packet.th_off = htons(5);
+                        fin_packet.th_win = htons(MAX_WIN);
+
+                        if (stcp_network_send(sd, &fin_packet, sizeof(fin_packet), NULL) == -1){
+                            perror("Failed to send FIN");
+                            return;
+                        }
+                        ctx->next_seq_to_send++;
+                        ctx->connection_state = CSTATE_WAITING_FOR_FINACK_PASSIVE;//now we are just waiting for the ack from the other side
                     }
                     
                    // printf("fin-received-end\n");
@@ -412,7 +423,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             stcp_fin_received(sd);
         }
 
-        while ((ctx->connection_state == CSTATE_ESTABLISHED || ctx->connection_state == CSTATE_DUMPING) && ctx->data_queue.head && (ctx->last_ack_received + MAX_WIN > ctx->next_seq_to_send + ctx->data_queue.head->size)) {
+        while (ctx->connection_state == CSTATE_ESTABLISHED && ctx->data_queue.head && (ctx->last_ack_received + MAX_WIN > ctx->next_seq_to_send + ctx->data_queue.head->size)) {
             queue_node_t *current = ctx->data_queue.head;
             STCPHeader data_packet = {0};
             data_packet.th_seq = htonl(ctx->next_seq_to_send);
@@ -433,23 +444,6 @@ static void control_loop(mysocket_t sd, context_t *ctx)
 
             ctx->next_seq_to_send += current->size;
             dequeue(&ctx->data_queue);  // Remove the sent data from the queue
-
-            if(!ctx->data_queue.head && ctx->connection_state == CSTATE_DUMPING){
-                    ctx->fin_sent_time = time(NULL);
-                    printf("finish dumping queue, now sending fin as return\n");
-                    STCPHeader fin_packet = {0};                
-                    fin_packet.th_flags = TH_FIN;
-                    fin_packet.th_seq = htonl(ctx->next_seq_to_send);
-                    fin_packet.th_off = htons(5);
-                    fin_packet.th_win = htons(MAX_WIN);
-
-                    if (stcp_network_send(sd, &fin_packet, sizeof(fin_packet), NULL) == -1){
-                        perror("Failed to send FIN");
-                        return;
-                    }
-                    ctx->next_seq_to_send++;
-                    ctx->connection_state = CSTATE_WAITING_FOR_FINACK_PASSIVE;
-            }
         }
 
 
