@@ -23,7 +23,7 @@
 #include <arpa/inet.h>
 
 #define FIN_TIMEOUT 2 
-#define MAX_WIN 700
+#define MAX_WIN 1200
 
 enum
 {
