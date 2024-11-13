@@ -24,7 +24,7 @@
 
 
 #define FIN_TIMEOUT 2 
-#define MAX_WIN 1200
+#define MAX_WIN 3072
 
 enum
 {
@@ -315,7 +315,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                         stcp_app_send(sd, data, data_bytes);
                         printf("Receiving a normal payload of size %zd bytes\n", data_bytes);
                     }
-                    sleep(2);
+                    //sleep(2);
                         printf("sending ack\n");
                                             //otherwise if the header is not ack, we give it an ack back
                     STCPHeader ack_packet = {0};
@@ -323,7 +323,14 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     ack_packet.th_seq = htonl(ctx->next_seq_to_send);
                     ack_packet.th_ack = htonl(next_expected_seq);
                     ack_packet.th_off = 5;
-                    ack_packet.th_win = htons(MAX_WIN);
+                    uint16_t temp = MAX_WIN - data_bytes;
+                    if(temp < 0){
+                        temp = 0;
+                    }
+                    if(temp > MAX_WIN){
+                        temp = MAX_WIN;
+                    }
+                    ck_packet.th_win = htons(temp);
 
                     if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1){
                         perror("Failed to send ACK");
@@ -393,7 +400,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             fin_packet.th_flags = TH_FIN;
             fin_packet.th_seq = htonl(ctx->next_seq_to_send);
             fin_packet.th_off = 5;
-            fin_packet.th_win = htons(MAX_WIN);
+            //fin_packet.th_win = htons(MAX_WIN);
 
             if (stcp_network_send(sd, &fin_packet, sizeof(fin_packet), NULL) == -1){
                 perror("Failed to send FIN");
@@ -444,7 +451,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     fin_packet.th_flags = TH_FIN;
                     fin_packet.th_seq = htonl(ctx->next_seq_to_send);
                     fin_packet.th_off = 5;
-                    fin_packet.th_win = htons(MAX_WIN);
+                    //fin_packet.th_win = htons(MAX_WIN);
 
                     if (stcp_network_send(sd, &fin_packet, sizeof(fin_packet), NULL) == -1){
                         perror("Failed to send FIN");
