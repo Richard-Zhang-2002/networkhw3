@@ -121,7 +121,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
         // send syn packet
         STCPHeader syn_packet = {0};
         syn_packet.th_flags = TH_SYN;
-        syn_packet.th_seq = htonl(ctx->next_seq_to_send);
+        syn_packet.th_seq = ctx->next_seq_to_send;
         if (stcp_network_send(sd, &syn_packet, sizeof(syn_packet), NULL) == -1){//syn send failed
             perror("Failed to send SYN");
             errno = ECONNREFUSED;
@@ -139,7 +139,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
                 return;
             }
             //if ack exists
-            if ((syn_ack_packet.th_flags & (TH_SYN | TH_ACK)) == (TH_SYN | TH_ACK)){//syn ack is essentially joining the two
+            if ((syn_ack_packet.th_flags & (TH_SYN | TH_ACK)) == (TH_SYN | TH_ACK)/* && syn_ack_packet.th_ack > ctx->next_seq_to_send  && syn_ack_packet.th_ack > ctx->next_seq_to_send+12500000*/){//syn ack is essentially joining the two
                 printf("syn_ack_packet.th_ack: %u\n", syn_ack_packet.th_ack);
                 printf("ctx->next_seq_to_send: %u\n", ctx->next_seq_to_send);
                 break;
@@ -149,8 +149,8 @@ void transport_init(mysocket_t sd, bool_t is_active)
         // send ack
         STCPHeader ack_packet = {0};
         ack_packet.th_flags = TH_ACK;//just use normal ack this time
-        ack_packet.th_seq = htonl(ctx->next_seq_to_send);//the sequence number(+1 since ack and syn here takes 1 even if no payload exists)
-        ack_packet.th_ack = htonl(ntohl(syn_ack_packet.th_seq) + 1);//next expected number
+        ack_packet.th_seq = ctx->next_seq_to_send;//the sequence number(+1 since ack and syn here takes 1 even if no payload exists)
+        ack_packet.th_ack = syn_ack_packet.th_seq + 1;//next expected number
         //if send failed
         if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1){
             perror("Failed to send ACK");
@@ -180,8 +180,8 @@ void transport_init(mysocket_t sd, bool_t is_active)
         // send syn ack
         STCPHeader syn_ack_packet = {0};
         syn_ack_packet.th_flags = TH_SYN | TH_ACK;
-        syn_ack_packet.th_seq = htonl(ctx->next_seq_to_send);
-        syn_ack_packet.th_ack = htonl(ntohl(syn_packet.th_seq) + 1);
+        syn_ack_packet.th_seq = ctx->next_seq_to_send;
+        syn_ack_packet.th_ack = syn_packet.th_seq + 1;
         if (stcp_network_send(sd, &syn_ack_packet, sizeof(syn_ack_packet), NULL) == -1){//syn ack send failed
             perror("Failed to send SYN ACK");
             return;
@@ -197,7 +197,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
                 return;
             }
             //if ack exists
-            if ((ack_packet.th_flags & (TH_ACK)) == (TH_ACK)){
+            if ((ack_packet.th_flags & (TH_ACK)) == (TH_ACK) && ack_packet.th_ack == ctx->next_seq_to_send){
                 break;
             }
         }
@@ -292,9 +292,8 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 //if (header->th_flags & TH_URG) printf("URG ");
                 //printf("\n");
 
-                tcp_seq local_seq_num = ntohl(header->th_seq);
                 //tell the other side about the next expected bit
-                tcp_seq next_expected_seq = (data_bytes > 0) ? (local_seq_num + data_bytes):(local_seq_num + 1);
+                tcp_seq next_expected_seq = (data_bytes > 0) ? (header->th_seq + data_bytes):(header->th_seq + 1);
                 //printf("network receive 3\n");
                 //receiver died here
 
@@ -305,8 +304,8 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                                             //otherwise if the header is not ack, we give it an ack back
                     STCPHeader ack_packet = {0};
                     ack_packet.th_flags = TH_ACK;
-                    ack_packet.th_seq = htonl(ctx->next_seq_to_send);
-                    ack_packet.th_ack = htonl(next_expected_seq);
+                    ack_packet.th_seq = ctx->next_seq_to_send;
+                    ack_packet.th_ack = next_expected_seq;
                     ack_packet.th_off = 5;
                     ctx->next_seq_to_send++;
 
@@ -319,9 +318,8 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     //printf("received\n");
                     if ((header->th_flags & TH_ACK)){//basically we already send fin and is now waiting for the final ack, and now we get it, so we close
                         printf("ack received\n");
-                        tcp_seq local_ack_num = ntohl(header->th_ack);
-                        ctx->last_ack_received = local_ack_num;
-                        if(local_ack_num == ctx->next_seq_to_send){
+                        ctx->last_ack_received = header->th_ack;
+                        if(header->th_ack == ctx->next_seq_to_send){
                             printf("ack relates to the newest sent item(if fin, this should be the ack for fin)\n");
                             if(ctx->connection_state == CSTATE_WAITING_FOR_FINACK_PASSIVE){
                                 printf("terminating as ack received under waiting for finack passive state\n");
@@ -357,7 +355,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                         printf("fin received under case established, sending fin and change state to wait_for_finack_passive\n");
                         STCPHeader fin_packet = {0};                
                         fin_packet.th_flags = TH_FIN;
-                        fin_packet.th_seq = htonl(ctx->next_seq_to_send);
+                        fin_packet.th_seq = ctx->next_seq_to_send;
                         fin_packet.th_off = 5;
 
                         if (stcp_network_send(sd, &fin_packet, sizeof(fin_packet), NULL) == -1){
@@ -387,7 +385,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             printf("sending fin as application requirement\n");
             STCPHeader fin_packet = {0};
             fin_packet.th_flags = TH_FIN;
-            fin_packet.th_seq = htonl(ctx->next_seq_to_send);
+            fin_packet.th_seq = ctx->next_seq_to_send;
             fin_packet.th_off = 5;
 
             if (stcp_network_send(sd, &fin_packet, sizeof(fin_packet), NULL) == -1){
