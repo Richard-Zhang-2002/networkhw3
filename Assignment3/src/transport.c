@@ -24,7 +24,7 @@
 
 
 #define FIN_TIMEOUT 2 
-#define MAX_WIN 3072
+#define MAX_WIN 1200
 
 enum
 {
