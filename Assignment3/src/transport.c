@@ -84,6 +84,7 @@ typedef struct
     time_t fin_sent_time;
     queue_t data_queue;
     uint16_t sender_window_size;
+    tcp_seq next_expected_seq;
     /* any other connection-wide global variables go here */
 } context_t;
 
@@ -114,6 +115,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
      */
 
     ctx->next_seq_to_send = ctx->initial_sequence_num;//initialization
+    ctx->next_expected_seq = 0;
     ctx->active = is_active;//save whether we are handling active or passive link here
 
     if (is_active) {
@@ -143,7 +145,8 @@ void transport_init(mysocket_t sd, bool_t is_active)
             }
             //if ack exists
             if ((syn_ack_packet.th_flags & (TH_SYN | TH_ACK)) == (TH_SYN | TH_ACK)){//syn ack is essentially joining the two
-                ctx->sender_window_size = ntohs(syn_ack_packet.th_win)
+                ctx->sender_window_size = ntohs(syn_ack_packet.th_win);
+                ctx->next_expected_seq = ntohl(syn_ack_packet.th_seq) + 1;
                 printf("syn_ack_packet.th_ack: %u\n", syn_ack_packet.th_ack);
                 printf("ctx->next_seq_to_send: %u\n", ctx->next_seq_to_send);
                 break;
@@ -154,7 +157,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
         STCPHeader ack_packet = {0};
         ack_packet.th_flags = TH_ACK;//just use normal ack this time
         ack_packet.th_seq = htonl(ctx->next_seq_to_send);//the sequence number(+1 since ack and syn here takes 1 even if no payload exists)
-        ack_packet.th_ack = htonl(ntohl(syn_ack_packet.th_seq) + 1);//next expected number
+        ack_packet.th_ack = htonl(ctx->next_expected_seq);//next expected number
         ack_packet.th_off = htons(5);
         ack_packet.th_win = htons(MAX_WIN);
         //if send failed
@@ -179,6 +182,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
             //if ack exists
             if ((syn_packet.th_flags & (TH_SYN)) == (TH_SYN)){
                 ctx->sender_window_size = ntohs(syn_packet.th_win);
+                ctx->next_expected_seq = ntohl(syn_packet.th_seq) + 1;
                 break;
             }
         }
@@ -187,7 +191,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
         STCPHeader syn_ack_packet = {0};
         syn_ack_packet.th_flags = TH_SYN | TH_ACK;
         syn_ack_packet.th_seq = htonl(ctx->next_seq_to_send);
-        syn_ack_packet.th_ack = htonl(ntohl(syn_packet.th_seq) + 1);
+        syn_ack_packet.th_ack = htonl(ctx->next_expected_seq);
         syn_ack_packet.th_off = htons(5);
         syn_ack_packet.th_win = htons(MAX_WIN);
         if (stcp_network_send(sd, &syn_ack_packet, sizeof(syn_ack_packet), NULL) == -1){//syn ack send failed
@@ -206,6 +210,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
             }
             //if ack exists
             if ((ack_packet.th_flags & (TH_ACK)) == (TH_ACK)){
+                ctx->next_expected_seq = ntohl(ack_packet.th_seq) + 1;
                 break;
             }
         }
@@ -301,20 +306,29 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 //printf("\n");
 
                 tcp_seq local_seq_num = ntohl(header->th_seq);
+
+                int isDuplicate = 0;
                 //tell the other side about the next expected bit
-                tcp_seq next_expected_seq = (data_bytes > 0) ? (local_seq_num + data_bytes):(local_seq_num + 1);
+                if(header->th_seq >= ctx->next_expected_seq){//regular header, not duplicate
+                    ctx->next_expected_seq = (data_bytes > 0) ? (local_seq_num + data_bytes):(local_seq_num + 1);
+                }else{
+                    isDuplicate = 1;
+                }
                 //printf("network receive 3\n");
                 //receiver died here
 
                 if (data_bytes > 0 || (header->th_flags & TH_FIN)){//send to app regardless
-                    if(data_bytes > 0){stcp_app_send(sd, data, data_bytes);}
+                    if(data_bytes > 0 && isDuplicate == 0){
+                        stcp_app_send(sd, data, data_bytes);
+                    }
                     printf("receiving a normal payload or FIN\n");
-                        printf("sending ack\n");
-                                            //otherwise if the header is not ack, we give it an ack back
+                    printf("sending ack\n");
+                    
+                    //otherwise if the header is not ack, we give it an ack back
                     STCPHeader ack_packet = {0};
                     ack_packet.th_flags = TH_ACK;
                     ack_packet.th_seq = htonl(ctx->next_seq_to_send);
-                    ack_packet.th_ack = htonl(next_expected_seq);
+                    ack_packet.th_ack = htonl(ctx->next_expected_seq);
                     ack_packet.th_off = htons(5);
                     ack_packet.th_win = htons(MAX_WIN);
 
