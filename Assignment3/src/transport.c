@@ -308,7 +308,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
 
                 if (data_bytes > 0 || (header->th_flags & TH_FIN)){//send to app regardless
                     if(data_bytes > 0){stcp_app_send(sd, data, data_bytes);}
-                    printf("receiving a normal payload or FIN\n");
+                    printf("Receiving a normal payload of size %zd bytes\n", data_bytes);
                         printf("sending ack\n");
                                             //otherwise if the header is not ack, we give it an ack back
                     STCPHeader ack_packet = {0};
@@ -436,7 +436,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 free(send_buffer);
                 return;
             }
-            printf("sent data\n");
+            printf("Sent data of size: %zd bytes\n", current->size);
 
             ctx->next_seq_to_send += current->size;
             dequeue(&ctx->data_queue);  // Remove the sent data from the queue
