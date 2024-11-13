@@ -22,7 +22,7 @@
 #include <arpa/inet.h>
 
 #define FIN_TIMEOUT 2 
-#define MAX_WIN 3072
+#define MAX_WIN 700
 
 enum
 {
@@ -150,6 +150,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
         }
 
         // send ack
+        sleep(2);//for testing sake, wait a bit
         STCPHeader ack_packet = {0};
         ack_packet.th_flags = TH_ACK;//just use normal ack this time
         ack_packet.th_seq = htonl(ctx->next_seq_to_send);//the sequence number(+1 since ack and syn here takes 1 even if no payload exists)
