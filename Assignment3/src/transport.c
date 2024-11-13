@@ -19,7 +19,7 @@
 #include "stcp_api.h"
 #include "transport.h"
 #include <time.h>
-
+#include <arpa/inet.h>
 
 #define FIN_TIMEOUT 2 
 
