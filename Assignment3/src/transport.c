@@ -433,8 +433,9 @@ static void control_loop(mysocket_t sd, context_t *ctx)
 
             ctx->next_seq_to_send += current->size;
             dequeue(&ctx->data_queue);  // Remove the sent data from the queue
+        }
 
-            if(!ctx->data_queue.head && ctx->connection_state == CSTATE_DUMPING){
+        if(!ctx->data_queue.head && ctx->connection_state == CSTATE_DUMPING){
                     ctx->fin_sent_time = time(NULL);
                     printf("finish dumping queue, now sending fin as return\n");
                     STCPHeader fin_packet = {0};                
@@ -450,7 +451,6 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     ctx->next_seq_to_send++;
                     ctx->connection_state = CSTATE_WAITING_FOR_FINACK_PASSIVE;
             }
-        }
 
 
         /* etc. */
