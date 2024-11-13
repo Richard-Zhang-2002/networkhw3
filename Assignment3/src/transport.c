@@ -307,8 +307,11 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 //receiver died here
 
                 if (data_bytes > 0 || (header->th_flags & TH_FIN)){//send to app regardless
-                    if(data_bytes > 0){stcp_app_send(sd, data, data_bytes);}
-                    printf("Receiving a normal payload of size %zd bytes\n", data_bytes);
+                    if(data_bytes > 0){
+                        stcp_app_send(sd, data, data_bytes);
+                        printf("Receiving a normal payload of size %zd bytes\n", data_bytes);
+                    }
+                    
                         printf("sending ack\n");
                                             //otherwise if the header is not ack, we give it an ack back
                     STCPHeader ack_packet = {0};
