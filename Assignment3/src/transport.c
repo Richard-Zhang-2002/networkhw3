@@ -227,7 +227,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             //printf("sent\n");
             /* the application has requested that data be sent */
             /* see stcp_app_recv() */
-
+            printf("Current window size: %d\n", ctx->window_size);
             ssize_t taken_window = ctx->next_seq_to_send - ctx->last_ack_received;
             if (taken_window >= ctx->window_size) {
                 continue; //window is full, no need to waste time
