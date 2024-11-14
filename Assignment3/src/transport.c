@@ -39,6 +39,7 @@ enum
 typedef struct queue_node {
     char *data;
     ssize_t size;
+    ssize_t bytes_sent;
     struct queue_node *next;
 } queue_node_t;
 
@@ -51,6 +52,7 @@ void enqueue(queue_t *queue, char *data, ssize_t size) {
     queue_node_t *new_node = (queue_node_t *)malloc(sizeof(queue_node_t));
     new_node->data = data;
     new_node->size = size;
+    new_node->bytes_sent = 0;
     new_node->next = NULL;
 
     if (queue->tail) {
@@ -60,6 +62,7 @@ void enqueue(queue_t *queue, char *data, ssize_t size) {
     }
     queue->tail = new_node;
 }
+
 
 void dequeue(queue_t *queue) {
     if (!queue->head) return;
@@ -446,10 +449,9 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             printf("Sent data of size: %zu bytes\n", data_to_send);
 
             ctx->next_seq_to_send += data_to_send;
-            if (data_to_send < current->size) {
-                current->data += data_to_send;
-                current->size -= data_to_send;
-            } else {
+            current->bytes_sent += data_to_send;
+
+            if (current->bytes_sent >= current->size) {
                 dequeue(&ctx->data_queue);
             }
         }
