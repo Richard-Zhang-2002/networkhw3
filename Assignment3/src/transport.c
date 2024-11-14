@@ -230,14 +230,12 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             //printf("sent\n");
             /* the application has requested that data be sent */
             /* see stcp_app_recv() */
-            printf("Current window size: %d\n", ctx->window_size);
-            printf("Next sequence to send: %zd\n", ctx->next_seq_to_send);
-            printf("Last acknowledgment received: %zd\n", ctx->last_ack_received);
-
+           // printf("Current window size: %d\n", ctx->window_size);
+           // printf("Next sequence to send: %zd\n", ctx->next_seq_to_send);
+           // printf("Last acknowledgment received: %zd\n", ctx->last_ack_received);
             ssize_t taken_window = ctx->next_seq_to_send - ctx->last_ack_received;
-            printf("Taken window size: %d\n", taken_window);
+           // printf("Taken window size: %d\n", taken_window);
 
-            if(ctx->last_ack_received > 1000000) return;
             if (taken_window >= ctx->window_size) {
                 continue; //window is full, no need to waste time
             }
@@ -312,8 +310,8 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     ack_packet.th_flags = TH_ACK;
                     ack_packet.th_seq = htonl(ctx->next_seq_to_send);
                     ack_packet.th_ack = htonl(next_expected_seq);
-                    printf("Next expected sequence number (host byte order): %u\n", next_expected_seq);
-                    printf("ACK packet th_ack (network byte order): %u\n", htonl(next_expected_seq));
+                   // printf("Next expected sequence number (host byte order): %u\n", next_expected_seq);
+                   // printf("ACK packet th_ack (network byte order): %u\n", htonl(next_expected_seq));
 
                     ack_packet.th_off = 5;
                     ack_packet.th_win = htons(MAX_WIN);
