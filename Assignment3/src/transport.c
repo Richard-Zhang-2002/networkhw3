@@ -251,7 +251,9 @@ static void control_loop(mysocket_t sd, context_t *ctx)
 
             char send_buffer[sizeof(STCPHeader) + bytes_read];
             STCPHeader data_packet = {0};
-            data_packet.th_seq = ntohl(ctx->next_seq_to_send);
+            data_packet.th_seq = htonl(ctx->next_seq_to_send);
+            data_packet->th_win = htons(WINDOW_SIZE);
+            data_packet->th_off = 5;
 
             //put the header and packet together
             memcpy(send_buffer, &data_packet, sizeof(STCPHeader));
