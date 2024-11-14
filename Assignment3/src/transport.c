@@ -277,10 +277,10 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 STCPHeader *header = (STCPHeader *)buffer;
                 char *data = buffer + 20;
                 ssize_t data_bytes = bytes_received - 20;
-                ctx->window_size = ntohs(header->th_win);
-                if (ctx->window_size == 0){
-                    ctx->window_size = 1;
-                }
+                //ctx->window_size = ntohs(header->th_win);
+                //if (ctx->window_size == 0){
+                //    ctx->window_size = 1;
+                //}
 
                 //printf("Flags set: ");
                 //if (header->th_flags & TH_FIN) printf("FIN ");
