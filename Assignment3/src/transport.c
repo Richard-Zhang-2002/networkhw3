@@ -309,6 +309,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 //printf("\n");
 
                 tcp_seq local_seq_num = ntohl(header->th_seq);
+                ctx->window_size = ntohs(header->th_win);
                 //tell the other side about the next expected bit
                 tcp_seq next_expected_seq = (data_bytes > 0) ? (local_seq_num + data_bytes):(local_seq_num + 1);
                 //printf("network receive 3\n");
@@ -327,18 +328,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     ack_packet.th_seq = htonl(ctx->next_seq_to_send);
                     ack_packet.th_ack = htonl(next_expected_seq);
                     ack_packet.th_off = 5;
-                    uint16_t temp = MAX_WIN - data_bytes;
-
-                    if(data_bytes > 536){
-                        return;
-                    }
-                    if(temp < 0){
-                        temp = 0;
-                    }
-                    if(temp > MAX_WIN){
-                        temp = MAX_WIN;
-                    }
-                    ack_packet.th_win = htons(temp);
+                    ack_packet.th_win = htons(MAX_WIN);
 
                     if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1){
                         perror("Failed to send ACK");
