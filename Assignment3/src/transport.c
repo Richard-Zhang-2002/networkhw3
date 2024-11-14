@@ -84,7 +84,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
         STCPHeader syn_packet = {0};
         syn_packet.th_flags = TH_SYN;
         syn_packet.th_seq = htonl(ctx->next_seq_to_send);
-        syn_packet.th_off = htons(5);
+        syn_packet.th_off = 5;
         syn_packet.th_win = htons(MAX_WIN);
         if (stcp_network_send(sd, &syn_packet, sizeof(syn_packet), NULL) == -1){//syn send failed
             perror("Failed to send SYN");
@@ -117,7 +117,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
         ack_packet.th_flags = TH_ACK;//just use normal ack this time
         ack_packet.th_seq = htonl(ctx->next_seq_to_send);//the sequence number(+1 since ack and syn here takes 1 even if no payload exists)
         ack_packet.th_ack = htonl(ntohl(syn_ack_packet.th_seq) + 1);//next expected number
-        ack_packet.th_off = htons(5);
+        ack_packet.th_off = 5;
         ack_packet.th_win = htons(MAX_WIN);
         //if send failed
         if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1){
@@ -150,7 +150,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
         syn_ack_packet.th_flags = TH_SYN | TH_ACK;
         syn_ack_packet.th_seq = htonl(ctx->next_seq_to_send);
         syn_ack_packet.th_ack = htonl(ntohl(syn_packet.th_seq) + 1);
-        syn_ack_packet.th_off = htons(5);
+        syn_ack_packet.th_off = 5;
         syn_ack_packet.th_win = htons(MAX_WIN);
         if (stcp_network_send(sd, &syn_ack_packet, sizeof(syn_ack_packet), NULL) == -1){//syn ack send failed
             perror("Failed to send SYN ACK");
@@ -312,7 +312,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     ack_packet.th_flags = TH_ACK;
                     ack_packet.th_seq = htonl(ctx->next_seq_to_send);
                     ack_packet.th_ack = htonl(next_expected_seq);
-                    ack_packet.th_off = htons(5);
+                    ack_packet.th_off = 5;
                     ack_packet.th_win = htons(MAX_WIN);
 
                     if (stcp_network_send(sd, &ack_packet, sizeof(ack_packet), NULL) == -1){
@@ -363,7 +363,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                         STCPHeader fin_packet = {0};                
                         fin_packet.th_flags = TH_FIN;
                         fin_packet.th_seq = htonl(ctx->next_seq_to_send);
-                        fin_packet.th_off = htons(5);
+                        fin_packet.th_off = 5;
                         fin_packet.th_win = htons(MAX_WIN);
 
                         if (stcp_network_send(sd, &fin_packet, sizeof(fin_packet), NULL) == -1){
@@ -394,7 +394,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             STCPHeader fin_packet = {0};
             fin_packet.th_flags = TH_FIN;
             fin_packet.th_seq = htonl(ctx->next_seq_to_send);
-            fin_packet.th_off = htons(5);
+            fin_packet.th_off = 5;
             fin_packet.th_win = htons(MAX_WIN);
 
             if (stcp_network_send(sd, &fin_packet, sizeof(fin_packet), NULL) == -1){
