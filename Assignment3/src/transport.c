@@ -326,7 +326,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                         stcp_app_send(sd, data, data_bytes);
                         printf("Receiving a normal payload of size %zd bytes\n", data_bytes);
                     }
-                    //sleep(2);
+                    sleep(2);
                         printf("sending ack\n");
                                             //otherwise if the header is not ack, we give it an ack back
                     STCPHeader ack_packet = {0};
