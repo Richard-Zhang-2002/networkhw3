@@ -309,7 +309,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                 //printf("\n");
 
                 tcp_seq local_seq_num = ntohl(header->th_seq);
-                ctx->window_size = ntohs(header->th_win);
+                ctx-> other_side_avl_buffer = ntohs(header->th_win);
                 //tell the other side about the next expected bit
                 tcp_seq next_expected_seq = (data_bytes > 0) ? (local_seq_num + data_bytes):(local_seq_num + 1);
                 //printf("network receive 3\n");
