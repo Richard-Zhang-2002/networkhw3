@@ -326,7 +326,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                         stcp_app_send(sd, data, data_bytes);
                         printf("Receiving a normal payload of size %zd bytes\n", data_bytes);
                     }
-                    //sleep(2);
+                    sleep(2);
                         printf("sending ack\n");
                                             //otherwise if the header is not ack, we give it an ack back
                     STCPHeader ack_packet = {0};
@@ -434,13 +434,14 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             data_packet.th_off = 5;
             data_packet.th_win = htons(MAX_WIN);
 
+            size_t remaining_data = current->size - current->bytes_sent;
             size_t window_space = ctx->last_ack_received + ctx->other_side_avl_buffer - ctx->next_seq_to_send;
-            size_t data_to_send = (current->size < window_space) ? current->size : window_space;
+            size_t data_to_send = (remaining_data < window_space) ? remaining_data : window_space;
 
             //put the header and packet together
             char send_buffer[20 + data_to_send];
             memcpy(send_buffer, &data_packet, 20);
-            memcpy(send_buffer + 20, current->data, data_to_send);
+            memcpy(send_buffer + 20, current->data + current->bytes_sent, data_to_send);
 
             if (stcp_network_send(sd, send_buffer, sizeof(STCPHeader) + data_to_send, NULL) == -1) {
                 perror("Failed to send data");
