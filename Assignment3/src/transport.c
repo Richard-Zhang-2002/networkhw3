@@ -106,6 +106,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
             if ((syn_ack_packet.th_flags & (TH_SYN | TH_ACK)) == (TH_SYN | TH_ACK)){//syn ack is essentially joining the two
                 printf("syn_ack_packet.th_ack: %u\n", syn_ack_packet.th_ack);
                 printf("ctx->next_seq_to_send: %u\n", ctx->next_seq_to_send);
+                ctx->last_ack_received = ntohl(syn_ack_packet ->th_ack);
                 break;
             }
         }
@@ -165,6 +166,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
             }
             //if ack exists
             if ((ack_packet.th_flags & (TH_ACK)) == (TH_ACK)){
+                ctx->last_ack_received = ntohl(ack_packet ->th_ack);
                 break;
             }
         }
