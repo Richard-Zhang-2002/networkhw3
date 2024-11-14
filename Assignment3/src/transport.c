@@ -69,8 +69,11 @@ void dequeue(queue_t *queue) {
 
     if (!queue->head) queue->tail = NULL;
 
+    printf("freeing data\n");
     free(temp->data);
+    printf("freeing temp\n");
     free(temp);
+    printf("done\n");
 }
 
 
