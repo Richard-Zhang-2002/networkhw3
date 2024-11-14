@@ -210,6 +210,7 @@ static void generate_initial_seq_num(context_t *ctx)
 static void control_loop(mysocket_t sd, context_t *ctx)
 {
     assert(ctx);
+    int a = 0;
 
     while (!ctx->done)
     {
@@ -230,10 +231,13 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             //printf("sent\n");
             /* the application has requested that data be sent */
             /* see stcp_app_recv() */
-            printf("Current window size: %d\n", ctx->window_size);
+            
+            
             ssize_t taken_window = ctx->next_seq_to_send - ctx->last_ack_received;
-            printf("Taken window size: %d\n", taken_window);
-            return;
+            if(a==0){
+                printf("Current window size: %d\n", ctx->window_size);printf("Taken window size: %d\n", taken_window);
+            }
+            a = 1;
             if (taken_window >= ctx->window_size) {
                 continue; //window is full, no need to waste time
             }
