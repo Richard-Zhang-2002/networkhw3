@@ -234,7 +234,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
             ssize_t packet_size = MIN(STCP_MSS,leftover);
             char buffer[packet_size];
 
-            ssize_t bytes_read = stcp_app_recv(sd, buffer, packet_size)
+            ssize_t bytes_read = stcp_app_recv(sd, buffer, packet_size);
 
             if(bytes_read < 0){
                 continue;//nothing to send
