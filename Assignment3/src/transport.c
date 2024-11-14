@@ -107,6 +107,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
                 printf("syn_ack_packet.th_ack: %u\n", ntohl(syn_ack_packet.th_ack));
                 printf("ctx->next_seq_to_send: %u\n", ctx->next_seq_to_send);
                 ctx->last_ack_received = ntohl(syn_ack_packet.th_ack);
+                ctx->window_size = ntohs(syn_ack_packet.th_win);
                 break;
             }
         }
@@ -139,6 +140,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
             }
             //if ack exists
             if ((syn_packet.th_flags & (TH_SYN)) == (TH_SYN)){
+                ctx->window_size = ntohs(syn_packet.th_win);
                 break;
             }
         }
@@ -167,6 +169,7 @@ void transport_init(mysocket_t sd, bool_t is_active)
             //if ack exists
             if ((ack_packet.th_flags & (TH_ACK)) == (TH_ACK)){
                 ctx->last_ack_received = ntohl(ack_packet.th_ack);
+                ctx->window_size = ntohs(ack_packet.th_win);
                 break;
             }
         }
