@@ -312,6 +312,9 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     ack_packet.th_flags = TH_ACK;
                     ack_packet.th_seq = htonl(ctx->next_seq_to_send);
                     ack_packet.th_ack = htonl(next_expected_seq);
+                    printf("Next expected sequence number (host byte order): %u\n", next_expected_seq);
+                    printf("ACK packet th_ack (network byte order): %u\n", htonl(next_expected_seq));
+
                     ack_packet.th_off = 5;
                     ack_packet.th_win = htons(MAX_WIN);
 
@@ -325,7 +328,7 @@ static void control_loop(mysocket_t sd, context_t *ctx)
                     if ((header->th_flags & TH_ACK)){//basically we already send fin and is now waiting for the final ack, and now we get it, so we close
                         printf("ack received\n");
                         tcp_seq local_ack_num = ntohl(header->th_ack);
-                        
+
                         printf("Header th_ack (network byte order): %u\n", header->th_ack);
                         printf("Local acknowledgment number (host byte order): %u\n", local_ack_num);
 
